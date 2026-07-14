@@ -154,7 +154,7 @@ input[type=text],input[type=date],input[type=tel],select{
   font-size:13px;font-weight:700;margin-bottom:10px;
 }
 /* summary */
-.summary{position:sticky;top:14px}
+.summary{}
 .sumgrid{display:grid;grid-template-columns:1fr auto;gap:3px 12px;font-variant-numeric:tabular-nums}
 .sumgrid .lbl{color:var(--ink-soft);font-size:13px}
 .sumgrid .val{text-align:right;font-weight:700;font-size:14px}
@@ -207,7 +207,7 @@ dialog .setrow input{width:80px}
   <span class="logo">gēn house</span>
   <div>
     <h1>彌月專員試算系統</h1>
-    <div class="sub">根號拾波士頓派・v5（追加日期＋Google Sheet 仿 Excel 分頁）</div>
+    <div class="sub">根號拾波士頓派・v8（排程與訂金區移至話術下方）</div>
   </div>
   <div class="spacer"></div>
   <button class="btn" id="btnSettings">⚙ 價格與參數設定</button>
@@ -317,20 +317,7 @@ dialog .setrow input{width:80px}
   </section>
 
   <section class="card">
-    <h2><span class="tag">5</span>分批取貨・出貨排程 <span class="hint">跟 Excel 一樣一批一列；只有宅配會算箱數運費</span></h2>
-    <div id="schedProgress" class="note" style="margin:0 0 8px"></div>
-    <div id="shipRows"></div>
-    <datalist id="timeslotList">
-      <option value="13:00前"></option>
-      <option value="14:00-18:00"></option>
-      <option value="11:30-18:50"></option>
-    </datalist>
-    <button class="btn small addbtn" id="addShip">＋ 新增批次</button>
-    <div class="note">一箱裝 1-<span id="noteCapCake">12</span> 顆蛋糕（油飯 1-<span id="noteCapOil">24</span> 盒）。每滿 <span id="noteFreePer">12</span> 顆蛋糕免 1 箱（油飯每滿 <span id="noteFreeOil">30</span> 盒免 1 箱）；扣免運後多的箱數本島 <span id="noteBoxFee">200</span> 元／箱，離島 <span id="noteIslandFee">400</span> 元／箱（離島不適用免運）。</div>
-  </section>
-
-  <section class="card">
-    <h2><span class="tag">6</span>油飯與加購品項 <span class="hint">選填</span></h2>
+    <h2><span class="tag">5</span>油飯與加購品項 <span class="hint">選填</span></h2>
     <div class="switchrow">
       <input type="checkbox" id="oilOn">
       <label for="oilOn"><b>油飯</b>
@@ -347,6 +334,43 @@ dialog .setrow input{width:80px}
     </div>
     <div id="addonRows"></div>
     <button class="btn small addbtn" id="addAddon">＋ 其他加購品項</button>
+  </section>
+
+</div>
+
+<div class="col-right">
+  <section class="card summary">
+    <h2>即時結算 <span class="hint" id="sumCust"></span></h2>
+    <div class="chips" id="chips"></div>
+    <div class="sumgrid" id="sumGrid"></div>
+    <div class="bigtotal"><span class="t" id="bigLbl">總尾款</span><span class="n" id="bigNum">0 元</span></div>
+  </section>
+
+  <section class="card">
+    <h2>給客人的話術 <span class="hint">數字自動帶入，一鍵複製</span></h2>
+    <div class="tabs" id="msgTabs">
+      <button class="tab active" data-m="quote">① 訂金試算</button>
+      <button class="tab" data-m="bank">② 匯款資訊</button>
+      <button class="tab" data-m="confirm">③ 訂金確認＋表單</button>
+      <button class="tab" data-m="final">④ 尾款結算</button>
+    </div>
+    <div class="msgbox" id="msgBox"></div>
+    <div class="copybar">
+      <button class="btn primary" id="btnCopy">📋 複製整段訊息</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span class="tag">6</span>分批取貨・出貨排程 <span class="hint">一批一列；只有宅配會算箱數運費</span></h2>
+    <div id="schedProgress" class="note" style="margin:0 0 8px"></div>
+    <div id="shipRows"></div>
+    <datalist id="timeslotList">
+      <option value="13:00前"></option>
+      <option value="14:00-18:00"></option>
+      <option value="11:30-18:50"></option>
+    </datalist>
+    <button class="btn small addbtn" id="addShip">＋ 新增批次</button>
+    <div class="note">一箱裝 1-<span id="noteCapCake">12</span> 顆蛋糕（油飯 1-<span id="noteCapOil">24</span> 盒）。每滿 <span id="noteFreePer">12</span> 顆蛋糕免 1 箱（油飯每滿 <span id="noteFreeOil">30</span> 盒免 1 箱）；扣免運後多的箱數本島 <span id="noteBoxFee">200</span> 元／箱，離島 <span id="noteIslandFee">400</span> 元／箱（離島不適用免運）。</div>
   </section>
 
   <section class="card">
@@ -372,30 +396,6 @@ dialog .setrow input{width:80px}
     <div class="switchrow">
       <input type="checkbox" id="taxOn">
       <label for="taxOn"><b>開立發票（+5% 營業稅）</b><span class="desc">彌月金額皆為未稅價；需開發票再酌收 5% 營業稅（客人名稱標記改【彌月含稅】）。</span></label>
-    </div>
-  </section>
-
-</div>
-
-<div class="col-right">
-  <section class="card summary">
-    <h2>即時結算 <span class="hint" id="sumCust"></span></h2>
-    <div class="chips" id="chips"></div>
-    <div class="sumgrid" id="sumGrid"></div>
-    <div class="bigtotal"><span class="t" id="bigLbl">總尾款</span><span class="n" id="bigNum">0 元</span></div>
-  </section>
-
-  <section class="card">
-    <h2>給客人的話術 <span class="hint">數字自動帶入，一鍵複製</span></h2>
-    <div class="tabs" id="msgTabs">
-      <button class="tab active" data-m="quote">① 訂金試算</button>
-      <button class="tab" data-m="bank">② 匯款資訊</button>
-      <button class="tab" data-m="confirm">③ 訂金確認＋表單</button>
-      <button class="tab" data-m="final">④ 尾款結算</button>
-    </div>
-    <div class="msgbox" id="msgBox"></div>
-    <div class="copybar">
-      <button class="btn primary" id="btnCopy">📋 複製整段訊息</button>
     </div>
   </section>
 </div>
