@@ -1,10 +1,12 @@
 /**
- * 根號拾｜彌月試算系統 × Google Sheet 同步後端
+ * 根號拾｜彌月試算系統 × Google Sheet 同步後端（v2 通用寫入版）
  * 部署方式見 README.md「雲端同步設定」段落。
  *
  * Sheet 結構（程式會自動建立，不用手動開分頁）：
  *  - 「訂單總覽」：一位客人一列（名稱/更新時間/總數/總額/訂金/總尾款/進度 + 完整資料JSON）
- *  - 「取貨排程」：一批一列（跟原本 Excel 一樣），每次上傳會重寫該客人的列
+ *  - 「取貨排程」：全部客人的批次彙總，一批一列
+ *  - 「<客人名稱>」：一位媽咪一個分頁，格式仿原本 Excel（批次表＋訂購總數＋付款狀態＋話術全文）
+ *    分頁內容由網頁端組好直接送過來（body.sheets），之後格式調整只改網頁、不用重貼此程式
  */
 
 const TOKEN = 'genhouse2026';   // ← 同步密碼，可自行改，需與系統「⚙ 設定」內填的一致
@@ -116,7 +118,34 @@ function saveOrder(body){
       sp.done ? 'V' : '',
     ]);
   });
+
+  // 仿 Excel 的「一位媽咪一個分頁」：網頁端把整張表組好送來，這裡整頁重寫
+  (body.sheets||[]).forEach(function(spec){
+    if(!spec || !spec.name || !spec.rows || !spec.rows.length) return;
+    writeCustomSheet(safeSheetName(spec.name), spec.rows);
+  });
   return {ok:true};
+}
+
+function safeSheetName(name){
+  // Google Sheet 分頁名稱不能含 []/\*?: 且上限 100 字
+  return String(name).replace(/[\[\]\/\\\*\?:]/g,'').slice(0,80) || '未命名';
+}
+
+function writeCustomSheet(name, rows){
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(name);
+  if(!sh) sh = ss.insertSheet(name);
+  sh.clearContents();
+  const maxCols = rows.reduce(function(m,r){ return Math.max(m, (r||[]).length); }, 1);
+  const grid = rows.map(function(r){
+    const row = (r||[]).slice();
+    while(row.length < maxCols) row.push('');
+    return row;
+  });
+  sh.getRange(1,1,grid.length,maxCols).setValues(grid);
+  sh.getRange(1,1,1,maxCols).setFontWeight('bold');
+  sh.setFrozenRows(1);
 }
 
 function listOrders(){
@@ -147,5 +176,8 @@ function deleteOrder(name){
   const idx = findRow(sh, n);
   if(idx > 0) sh.deleteRow(idx);
   deleteCustomerRows(sheetSched(), n);
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const custSheet = ss.getSheetByName(safeSheetName(n));
+  if(custSheet) ss.deleteSheet(custSheet);
   return {ok:true};
 }

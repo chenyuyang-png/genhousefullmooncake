@@ -207,7 +207,7 @@ dialog .setrow input{width:80px}
   <span class="logo">gēn house</span>
   <div>
     <h1>彌月專員試算系統</h1>
-    <div class="sub">根號拾波士頓派・v3（訂金鎖定＋追加＋分批取貨排程）</div>
+    <div class="sub">根號拾波士頓派・v5（追加日期＋Google Sheet 仿 Excel 分頁）</div>
   </div>
   <div class="spacer"></div>
   <button class="btn" id="btnSettings">⚙ 價格與參數設定</button>
@@ -522,7 +522,10 @@ function calc(){
     const f=flavorById(e.fid); if(!f) continue;
     const u=extraUnitPrice(e);
     extraQty+=q; extraAmt+=q*u;
-    extraLines.push({name:f.name, price:u, q, sub:q*u, note:e.note||'', mode:e.mode});
+    const noteParts=[];
+    if(e.date) noteParts.push(shortDate(e.date)+'追加');
+    if(e.note) noteParts.push(e.note);
+    extraLines.push({name:f.name, price:u, q, sub:q*u, note:noteParts.join(' '), mode:e.mode});
   }
   const cakeQty = initQty + extraQty;
   const cakeAmt = initAmt + extraAmt;
@@ -839,7 +842,9 @@ function renderExtras(){
         el('input',{type:'number',class:'inline-num',min:'0',value:ex.qty||0,style:'width:60px',
           oninput:e=>{ex.qty=+e.target.value||0;update();}}),
         '顆', modeSel, priceInp,
-        el('input',{type:'text',placeholder:'備註 例:7/2追加',value:ex.note||'',style:'width:110px',
+        el('input',{type:'date',value:ex.date||'',title:'追加日期',
+          onchange:e=>{ex.date=e.target.value;save();updateMsgOnly();}}),
+        el('input',{type:'text',placeholder:'備註(選填)',value:ex.note||'',style:'width:90px',
           oninput:e=>{ex.note=e.target.value;save();updateMsgOnly();}}),
         subSpan,
         el('button',{class:'del','aria-label':'刪除追加',onclick:()=>{S.extras.splice(i,1);update();}},'✕'),
@@ -1113,6 +1118,46 @@ function cloudReady(){
   }
   return true;
 }
+/* 仿原本 Excel 的「一位媽咪一個分頁」內容 */
+function buildCustomerSheet(C){
+  const P=S.params;
+  const rows=[];
+  rows.push(['品項','數量','取貨方式','收件人','聯絡電話','地址','到貨/取貨時間','宅配使用箱數','KEY單','到貨日','已完成/領取','備註']);
+  for(const sp of S.ships){
+    const cake=+sp.cake||0, oil=+sp.oil||0;
+    if(cake<=0 && oil<=0) continue;
+    const isDelivery=(sp.mode||'delivery')==='delivery';
+    const boxes=isDelivery ? Math.ceil(cake/P.boxCapCake)+Math.ceil(oil/P.boxCapOil) : 0;
+    const memo=[];
+    if(isDelivery && sp.island) memo.push('離島');
+    if(oil>0) memo.push(`油飯${oil}盒`);
+    rows.push([
+      sp.label||'蛋糕', cake||oil, isDelivery?'宅配':'自取',
+      sp.receiver||'', sp.phone?("'"+sp.phone):'', sp.addr||'', '',
+      isDelivery?`${boxes}箱`:'', '',
+      sp.date?shortDate(sp.date):'', sp.done?'V':'', memo.join('、'),
+    ]);
+  }
+  rows.push([]);
+  // 訂購總數（含追加；贈送另列）
+  const perFlavor={};
+  for(const f of S.flavors){ const q=+(S.qty[f.id]||0); if(q>0) perFlavor[f.name]=(perFlavor[f.name]||0)+q; }
+  for(const e of S.extras){ const f=flavorById(e.fid); const q=+e.qty||0; if(f&&q>0) perFlavor[f.name]=(perFlavor[f.name]||0)+q; }
+  rows.push(['訂購總數', C.cakeQty]);
+  for(const n in perFlavor) rows.push([n, perFlavor[n]]);
+  for(const g of C.giftLines) rows.push([`${g.name}(贈送)`, g.q]);
+  if(C.oilQty>0) rows.push(['油飯', C.oilQty]);
+  rows.push([]);
+  rows.push(['付款狀態','']);
+  rows.push([S.paidOn?'訂金已付':'訂金未付', C.deposit]);
+  rows.push(['總尾款', C.finalBalance]);
+  rows.push([]);
+  rows.push(['訂購資訊','']);
+  rows.push([S.customer||'', '']);
+  rows.push([]);
+  rows.push([msgQuote(C)]);   // 話術全文放一格，跟原本 Excel 一樣
+  return rows;
+}
 async function cloudSave(){
   if(!cloudReady()) return;
   const name=(S.customer||'').trim();
@@ -1124,7 +1169,8 @@ async function cloudSave(){
       action:'save', token:CFG.token, name,
       summary:{cakeQty:C.cakeQty, giftQty:C.giftQty, cakeAmt:C.cakeAmt, deposit:C.deposit,
                finalBalance:C.finalBalance, scheduled:C.scheduledCake, done:C.doneCnt, shipCnt:C.shipCnt},
-      state:S
+      state:S,
+      sheets:[{name:name, rows:buildCustomerSheet(C)}]
     })});
     const d=await res.json();
     if(d.error) throw new Error(d.error);
@@ -1207,7 +1253,10 @@ bind('#forkOn','forkOn'); bind('#forkQty','forkQty',true);
 bind('#firstDate','firstDate'); bind('#paidOn','paidOn'); bind('#taxOn','taxOn');
 bind('#depOvOn','depOvOn'); bind('#depOvAmt','depOvAmt',true);
 
-$('#addExtra').addEventListener('click',()=>{S.extras.push({fid:S.flavors[0].id,qty:0,mode:'miyue',price:0,note:''});update();});
+$('#addExtra').addEventListener('click',()=>{
+  const today=new Date(); const iso=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  S.extras.push({fid:S.flavors[0].id,qty:0,mode:'miyue',price:0,date:iso,note:''});update();
+});
 $('#addShip').addEventListener('click',()=>{S.ships.push({mode:'delivery',label:'',cake:0,oil:0,island:false,receiver:'',phone:'',addr:'',date:'',done:false});update();});
 $('#addAddon').addEventListener('click',()=>{S.addons.push({name:'',amt:0});update();});
 $('#msgTabs').addEventListener('click',e=>{
