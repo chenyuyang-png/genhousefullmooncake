@@ -231,7 +231,14 @@ dialog .setrow input{width:80px}
       <button class="btn small" id="btnImport">⬆ 匯入</button>
       <input type="file" id="importFile" accept=".json" style="display:none">
     </div>
-    <div class="note">⚠️ 訂單只存在各自電腦，換電腦要用「備份/匯入」帶過去。Google Sheet 仍是正式檔案，這裡負責算數字＋生話術。</div>
+    <div class="shiprow" style="border-bottom:none;padding:4px 0 0">
+      <button class="btn small primary" id="btnCloudSave">☁️ 上傳 Google Sheet</button>
+      <select id="cloudSelect" style="min-width:130px"><option value="">－ 雲端訂單 －</option></select>
+      <button class="btn small" id="btnCloudRefresh">↻ 清單</button>
+      <button class="btn small" id="btnCloudLoad">☁️ 載入</button>
+      <span class="note" id="cloudStatus" style="margin:0"></span>
+    </div>
+    <div class="note">💾＝存這台電腦；☁️＝同步到 Google Sheet（全門市共用，需先在「⚙ 設定」貼上同步網址）。上傳會同時把該客人的取貨排程寫進 Sheet 的「取貨排程」分頁。</div>
   </section>
 
   <section class="card">
@@ -400,6 +407,10 @@ dialog .setrow input{width:80px}
     <div class="setrow"><span>叉盤組單價（元/組）</span><input type="number" class="inline-num" data-k="forkPrice"></div>
     <div class="setrow"><span>公益捐款比例（%）</span><input type="number" class="inline-num" data-k="charityPct"></div>
   </div>
+  <h3 style="margin-top:16px">☁️ Google Sheet 雲端同步</h3>
+  <p class="note" style="margin-top:0">照部署說明把 Apps Script 發佈成網頁應用程式後，將「/exec 結尾的網址」貼在下面。全部同事貼同一組網址＋密碼，就能共用同一張 Sheet。</p>
+  <div class="setrow"><span style="flex:none">Apps Script 網址</span><input type="text" id="cfgUrl" placeholder="https://script.google.com/macros/s/…/exec" style="width:100%;max-width:300px"></div>
+  <div class="setrow"><span>同步密碼（token）</span><input type="text" id="cfgToken" placeholder="需與 Apps Script 內一致" style="width:180px"></div>
   <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
     <button class="btn" id="btnRestoreDefault">還原預設值</button>
     <button class="btn primary" id="btnCloseSettings">完成</button>
@@ -428,6 +439,9 @@ const DEFAULT_PARAMS = {
 };
 const LS_KEY  = 'genhouse-miyue-v1';
 const ORD_KEY = 'genhouse-miyue-orders-v1';
+const CFG_KEY = 'genhouse-miyue-cloud-v1';
+let CFG = (()=>{ try{ return {url:'',token:'', ...JSON.parse(localStorage.getItem(CFG_KEY)||'{}')}; }catch(e){ return {url:'',token:''}; } })();
+function saveCfg(){ try{ localStorage.setItem(CFG_KEY, JSON.stringify(CFG)); }catch(e){} }
 
 /* ---------- 狀態 ---------- */
 let S = loadState();
@@ -1085,6 +1099,73 @@ $('#importFile').addEventListener('change',e=>{
   reader.readAsText(file);
 });
 
+/* ---------- Google Sheet 雲端同步 ---------- */
+function setCloudStatus(msg, isErr){
+  const e=$('#cloudStatus');
+  e.textContent=msg;
+  e.style.color = isErr ? 'var(--red)' : 'var(--green-deep)';
+}
+function cloudReady(){
+  if(!CFG.url || !/\/exec\b/.test(CFG.url)){
+    alert('請先到「⚙ 價格與參數設定」最下方，貼上 Apps Script 的 /exec 網址與同步密碼');
+    renderSettings(); $('#dlgSettings').showModal();
+    return false;
+  }
+  return true;
+}
+async function cloudSave(){
+  if(!cloudReady()) return;
+  const name=(S.customer||'').trim();
+  if(!name){ alert('請先填「客人名稱」再上傳'); $('#custName').focus(); return; }
+  const C=calc();
+  setCloudStatus('⏳ 上傳中…');
+  try{
+    const res=await fetch(CFG.url,{method:'POST',body:JSON.stringify({
+      action:'save', token:CFG.token, name,
+      summary:{cakeQty:C.cakeQty, giftQty:C.giftQty, cakeAmt:C.cakeAmt, deposit:C.deposit,
+               finalBalance:C.finalBalance, scheduled:C.scheduledCake, done:C.doneCnt, shipCnt:C.shipCnt},
+      state:S
+    })});
+    const d=await res.json();
+    if(d.error) throw new Error(d.error);
+    setCloudStatus('✓ 已上傳 '+new Date().toLocaleTimeString('zh-TW',{hour12:false}));
+    cloudRefresh(true);
+  }catch(err){ setCloudStatus('✗ 上傳失敗：'+err.message, true); }
+}
+async function cloudRefresh(silent){
+  if(!CFG.url) { if(!silent) cloudReady(); return; }
+  if(!silent) setCloudStatus('⏳ 讀取清單…');
+  try{
+    const res=await fetch(CFG.url+'?action=list&token='+encodeURIComponent(CFG.token));
+    const d=await res.json();
+    if(d.error) throw new Error(d.error);
+    const sel=$('#cloudSelect'); const cur=sel.value;
+    sel.innerHTML='<option value="">－ 雲端訂單 －</option>';
+    (d.orders||[]).sort((a,b)=>a.name.localeCompare(b.name,'zh-Hant')).forEach(o=>{
+      sel.append(el('option',{value:o.name},o.name));
+    });
+    if([...sel.options].some(op=>op.value===cur)) sel.value=cur;
+    if(!silent) setCloudStatus(`✓ 雲端共 ${(d.orders||[]).length} 筆`);
+  }catch(err){ if(!silent) setCloudStatus('✗ 讀取失敗：'+err.message, true); }
+}
+async function cloudLoad(){
+  if(!cloudReady()) return;
+  const name=$('#cloudSelect').value;
+  if(!name){ alert('請先按「↻ 清單」並從「雲端訂單」下拉選一筆'); return; }
+  setCloudStatus('⏳ 載入中…');
+  try{
+    const res=await fetch(CFG.url+'?action=load&token='+encodeURIComponent(CFG.token)+'&name='+encodeURIComponent(name));
+    const d=await res.json();
+    if(d.error) throw new Error(d.error);
+    if(!d.state) throw new Error('資料格式不對');
+    localStorage.setItem(LS_KEY, JSON.stringify(d.state));
+    location.reload();
+  }catch(err){ setCloudStatus('✗ 載入失敗：'+err.message, true); }
+}
+$('#btnCloudSave').addEventListener('click',cloudSave);
+$('#btnCloudRefresh').addEventListener('click',()=>cloudRefresh(false));
+$('#btnCloudLoad').addEventListener('click',cloudLoad);
+
 /* ---------- 設定視窗 ---------- */
 function renderSettings(){
   const wrap=$('#priceSettings'); wrap.innerHTML='';
@@ -1097,6 +1178,9 @@ function renderSettings(){
     inp.value=S.params[inp.dataset.k];
     inp.oninput=()=>{S.params[inp.dataset.k]=+inp.value||0; syncNotes(); update();};
   });
+  $('#cfgUrl').value=CFG.url; $('#cfgToken').value=CFG.token;
+  $('#cfgUrl').oninput=e=>{CFG.url=e.target.value.trim(); saveCfg();};
+  $('#cfgToken').oninput=e=>{CFG.token=e.target.value.trim(); saveCfg();};
 }
 function syncNotes(){
   $('#noteBoxFee').textContent=S.params.boxFee;
@@ -1157,6 +1241,7 @@ $('#btnReset').addEventListener('click',()=>{
 syncNotes();
 refreshOrderSelect();
 update();
+if(CFG.url) cloudRefresh(true);
 </script>
 
 </html>
