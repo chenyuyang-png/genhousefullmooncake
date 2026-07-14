@@ -23,18 +23,9 @@
 }
 @media (prefers-color-scheme: dark){
   :root{
-    --bg:#211B12;
-    --card:#2B2417;
-    --ink:#EBDFC8;
-    --ink-soft:#B5A382;
-    --line:#463B26;
-    --green:#63B56F;
-    --green-deep:#7FC98A;
-    --green-soft:#2C3A28;
-    --red:#E07A6D;
-    --red-soft:#46271F;
-    --gold:#D8B05E;
-    --gold-soft:#3D3318;
+    --bg:#211B12; --card:#2B2417; --ink:#EBDFC8; --ink-soft:#B5A382; --line:#463B26;
+    --green:#63B56F; --green-deep:#7FC98A; --green-soft:#2C3A28;
+    --red:#E07A6D; --red-soft:#46271F; --gold:#D8B05E; --gold-soft:#3D3318;
     --shadow:0 1px 3px rgba(0,0,0,.35);
   }
 }
@@ -88,7 +79,7 @@ section.card{
   box-shadow:var(--shadow);padding:16px 18px;margin-bottom:16px;
 }
 section.card h2{
-  font-size:15px;margin:0 0 10px;display:flex;align-items:center;gap:8px;font-weight:800;
+  font-size:15px;margin:0 0 10px;display:flex;align-items:center;gap:8px;font-weight:800;flex-wrap:wrap;
 }
 h2 .tag{
   background:var(--green);color:#fff;border-radius:6px;font-size:11.5px;
@@ -133,12 +124,20 @@ tfoot td{border-top:2px solid var(--line);border-bottom:none;font-weight:800;pad
   width:76px;border:1.5px solid var(--line);border-radius:8px;padding:4px 8px;font-size:14px;
   background:var(--card);color:var(--ink);font-variant-numeric:tabular-nums;font-family:inherit;
 }
-input[type=text],input[type=date],select{
+input[type=text],input[type=date],input[type=tel],select{
   border:1.5px solid var(--line);border-radius:8px;padding:5px 8px;font-size:13.5px;
   background:var(--card);color:var(--ink);font-family:inherit;
 }
 .shiprow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 0;border-bottom:1px dashed var(--line)}
 .shiprow .boxinfo{font-size:12.5px;color:var(--ink-soft);margin-left:auto;white-space:nowrap}
+.shipblock{
+  border:1.5px dashed var(--line);border-radius:12px;padding:8px 10px;margin-bottom:10px;
+}
+.shipblock.done{opacity:.62;border-style:solid;background:var(--green-soft)}
+.shipblock .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:3px 0}
+.shipblock .boxinfo{font-size:12.5px;color:var(--ink-soft);margin-left:auto;white-space:nowrap;font-weight:700}
+.shipblock .donechk{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;color:var(--ink-soft);white-space:nowrap}
+.shipblock .donechk input{width:16px;height:16px;accent-color:var(--green)}
 .del{
   border:none;background:transparent;color:var(--red);cursor:pointer;font-size:16px;
   padding:2px 6px;border-radius:6px;line-height:1;
@@ -208,7 +207,7 @@ dialog .setrow input{width:80px}
   <span class="logo">gēn house</span>
   <div>
     <h1>彌月專員試算系統</h1>
-    <div class="sub">根號拾波士頓派・依 2026 年版教戰守則規則計算</div>
+    <div class="sub">根號拾波士頓派・v3（訂金鎖定＋追加＋分批取貨排程）</div>
   </div>
   <div class="spacer"></div>
   <button class="btn" id="btnSettings">⚙ 價格與參數設定</button>
@@ -219,13 +218,30 @@ dialog .setrow input{width:80px}
 <div class="col-left">
 
   <section class="card">
-    <h2><span class="tag">1</span>蛋糕訂購 <span class="hint">滿 20 盒才享彌月優惠價</span></h2>
+    <h2>📁 訂單管理 <span class="hint">每位媽咪一筆訂單，存在這台電腦的瀏覽器裡</span></h2>
+    <div class="shiprow" style="border-bottom:none;padding:0">
+      客人名稱
+      <input type="text" id="custName" placeholder="例：淑敏媽咪" style="width:130px">
+      <button class="btn small primary" id="btnSaveOrder">💾 儲存這筆</button>
+      <select id="orderSelect" style="min-width:130px"><option value="">－ 已存訂單 －</option></select>
+      <button class="btn small" id="btnLoadOrder">開啟</button>
+      <button class="btn small" id="btnDeleteOrder">刪除</button>
+      <button class="btn small" id="btnNewOrder">＋ 新訂單</button>
+      <button class="btn small" id="btnExport">⬇ 備份</button>
+      <button class="btn small" id="btnImport">⬆ 匯入</button>
+      <input type="file" id="importFile" accept=".json" style="display:none">
+    </div>
+    <div class="note">⚠️ 訂單只存在各自電腦，換電腦要用「備份/匯入」帶過去。Google Sheet 仍是正式檔案，這裡負責算數字＋生話術。</div>
+  </section>
+
+  <section class="card">
+    <h2><span class="tag">1</span>初始訂購 <span class="hint">收訂金前的第一筆訂單，訂金 30% 以這裡為準</span></h2>
     <div id="qualifyBanner"></div>
     <table>
       <thead><tr><th>口味</th><th>彌月價</th><th>數量</th><th class="num">小計</th></tr></thead>
       <tbody id="flavorRows"></tbody>
       <tfoot><tr>
-        <td>合計</td><td></td>
+        <td>初始合計</td><td></td>
         <td id="totQty" style="font-variant-numeric:tabular-nums">0 盒</td>
         <td class="num" id="totAmt">0 元</td>
       </tr></tfoot>
@@ -234,11 +250,18 @@ dialog .setrow input{width:80px}
   </section>
 
   <section class="card">
-    <h2><span class="tag">2</span>贈送蛋糕（買 10 送 1）</h2>
+    <h2><span class="tag">2</span>追加訂購 <span class="hint">收完訂金後客人陸續加訂的蛋糕，不動已收訂金、滾進尾款</span></h2>
+    <div id="extraRows"></div>
+    <button class="btn small addbtn" id="addExtra">＋ 新增一筆追加</button>
+    <div class="note">第一次取貨/到貨日後 7 日內追加 → 用彌月優惠價；超過 → 用原價（每筆可以選）。追加後的總數會一起算免運箱數與滿額門檻。</div>
+  </section>
+
+  <section class="card">
+    <h2><span class="tag">3</span>贈送蛋糕（買 10 送 1）</h2>
     <div class="switchrow">
       <input type="checkbox" id="giftOn">
       <label for="giftOn"><b>啟用買 10 送 1</b>
-        <span class="desc">每買 10 盒送 1 盒；贈送口味僅限 法式香緹、藍莓香緹、伯爵紅茶；贈送蛋糕不計金額、不算免運蛋糕，但寄送時要算箱數。</span>
+        <span class="desc">每買 10 盒送 1 盒（含追加）；贈送口味僅限 法式香緹、藍莓香緹、伯爵紅茶；贈送不計金額、不算免運蛋糕，但寄送時要算箱數。</span>
       </label>
     </div>
     <div id="giftArea" style="display:none">
@@ -248,11 +271,11 @@ dialog .setrow input{width:80px}
   </section>
 
   <section class="card">
-    <h2><span class="tag">3</span>優惠與折扣</h2>
+    <h2><span class="tag">4</span>優惠與折扣</h2>
     <div class="switchrow">
       <input type="checkbox" id="mzOn">
       <label for="mzOn"><b>月子中心 95 折</b>
-        <span class="desc">蛋糕訂購金額 ×5% 折扣（四捨五入），不含運費／加購；需滿 20 盒；油飯不適用。</span>
+        <span class="desc">蛋糕訂購金額（含追加）×5% 折扣（四捨五入），不含運費／加購；需滿 20 盒；油飯不適用。</span>
       </label>
     </div>
     <div class="switchrow">
@@ -279,14 +302,15 @@ dialog .setrow input{width:80px}
   </section>
 
   <section class="card">
-    <h2><span class="tag">4</span>宅配批次 <span class="hint">全自取免填；每批次自動算箱數</span></h2>
+    <h2><span class="tag">5</span>分批取貨・出貨排程 <span class="hint">跟 Excel 一樣一批一列；只有宅配會算箱數運費</span></h2>
+    <div id="schedProgress" class="note" style="margin:0 0 8px"></div>
     <div id="shipRows"></div>
-    <button class="btn small addbtn" id="addShip">＋ 新增宅配批次</button>
-    <div class="note">一箱裝 1-12 顆蛋糕（油飯 1-24 盒）。每滿 12 顆蛋糕免 1 箱本島運費（油飯每滿 30 盒免 1 箱）；扣免運後多的箱數本島 <span id="noteBoxFee">200</span> 元／箱，離島 <span id="noteIslandFee">400</span> 元／箱（離島不適用免運）。</div>
+    <button class="btn small addbtn" id="addShip">＋ 新增批次</button>
+    <div class="note">一箱裝 1-<span id="noteCapCake">12</span> 顆蛋糕（油飯 1-<span id="noteCapOil">24</span> 盒）。每滿 <span id="noteFreePer">12</span> 顆蛋糕免 1 箱（油飯每滿 <span id="noteFreeOil">30</span> 盒免 1 箱）；扣免運後多的箱數本島 <span id="noteBoxFee">200</span> 元／箱，離島 <span id="noteIslandFee">400</span> 元／箱（離島不適用免運）。</div>
   </section>
 
   <section class="card">
-    <h2><span class="tag">5</span>油飯與加購品項 <span class="hint">選填</span></h2>
+    <h2><span class="tag">6</span>油飯與加購品項 <span class="hint">選填</span></h2>
     <div class="switchrow">
       <input type="checkbox" id="oilOn">
       <label for="oilOn"><b>油飯</b>
@@ -306,7 +330,18 @@ dialog .setrow input{width:80px}
   </section>
 
   <section class="card">
-    <h2><span class="tag">6</span>日期與其他</h2>
+    <h2><span class="tag">7</span>訂金・日期・其他</h2>
+    <div class="switchrow">
+      <input type="checkbox" id="paidOn">
+      <label for="paidOn"><b>訂金已收到</b><span class="desc">勾選後訊息中訂金會標示「(已付款)」。</span></label>
+    </div>
+    <div class="switchrow">
+      <input type="checkbox" id="depOvOn">
+      <label for="depOvOn"><b>手動指定訂金金額</b>
+        <span class="desc">金額 <input type="number" class="inline-num" id="depOvAmt" value="0" min="0"> 元
+        （不勾 = 自動以「初始訂購＋油飯」的 30% 計算；追加永遠不改變已收訂金）</span>
+      </label>
+    </div>
     <div class="switchrow" style="border-bottom:1px dashed var(--line)">
       <span style="width:17px"></span>
       <span>第一次取貨／到貨日
@@ -315,12 +350,8 @@ dialog .setrow input{width:80px}
       </span>
     </div>
     <div class="switchrow">
-      <input type="checkbox" id="paidOn">
-      <label for="paidOn"><b>訂金已收到</b><span class="desc">勾選後訊息中訂金會標示「(已付款)」並以尾款口徑呈現。</span></label>
-    </div>
-    <div class="switchrow">
       <input type="checkbox" id="taxOn">
-      <label for="taxOn"><b>開立發票（+5% 營業稅）</b><span class="desc">彌月金額皆為未稅價；需開發票再酌收 5% 營業稅（改客人名稱標記為【彌月含稅】）。</span></label>
+      <label for="taxOn"><b>開立發票（+5% 營業稅）</b><span class="desc">彌月金額皆為未稅價；需開發票再酌收 5% 營業稅（客人名稱標記改【彌月含稅】）。</span></label>
     </div>
   </section>
 
@@ -328,7 +359,7 @@ dialog .setrow input{width:80px}
 
 <div class="col-right">
   <section class="card summary">
-    <h2>即時結算</h2>
+    <h2>即時結算 <span class="hint" id="sumCust"></span></h2>
     <div class="chips" id="chips"></div>
     <div class="sumgrid" id="sumGrid"></div>
     <div class="bigtotal"><span class="t" id="bigLbl">總尾款</span><span class="n" id="bigNum">0 元</span></div>
@@ -377,7 +408,7 @@ dialog .setrow input{width:80px}
 
 <script>
 'use strict';
-/* ---------- 預設參數（2026年版教戰守則） ---------- */
+/* ---------- 預設參數（2026年版教戰守則；實際數字可於設定調整） ---------- */
 const DEFAULT_FLAVORS = [
   {id:'fashi',  name:'法式香緹', price:238, orig:400, cold:false, giftable:true},
   {id:'lanxiang',name:'藍莓香緹', price:268, orig:420, cold:false, giftable:true},
@@ -395,7 +426,8 @@ const DEFAULT_PARAMS = {
   boxCapCake:12, boxCapOil:24, minBoxes:20, cardThreshold:6500,
   depositPct:30, mzPct:5, tastePerItem:100, forkPrice:10, charityPct:5,
 };
-const LS_KEY = 'genhouse-miyue-v1';
+const LS_KEY  = 'genhouse-miyue-v1';
+const ORD_KEY = 'genhouse-miyue-orders-v1';
 
 /* ---------- 狀態 ---------- */
 let S = loadState();
@@ -403,12 +435,14 @@ function blankState(){
   return {
     flavors: JSON.parse(JSON.stringify(DEFAULT_FLAVORS)),
     params: {...DEFAULT_PARAMS},
-    qty:{}, giftQty:{}, giftOn:false,
+    customer:'',
+    qty:{}, extras:[], giftQty:{}, giftOn:false,
     mzOn:false, tasteOn:false, tasteN:0, charityOn:false,
     manualOn:false, manualAmt:0, manualNote:'',
     ships:[], oilOn:false, oilQty:0, oilPrice:0,
     forkOn:false, forkQty:0, addons:[],
     firstDate:'', paidOn:false, taxOn:false,
+    depOvOn:false, depOvAmt:0,
     activeMsg:'quote',
   };
 }
@@ -418,10 +452,13 @@ function loadState(){
     if(!raw) return blankState();
     const s = {...blankState(), ...JSON.parse(raw)};
     s.params = {...DEFAULT_PARAMS, ...s.params};
+    s.ships = (s.ships||[]).map(sp=>({mode:'delivery',label:'',cake:0,oil:0,island:false,receiver:'',phone:'',addr:'',date:'',done:false,...sp}));
     return s;
   }catch(e){ return blankState(); }
 }
 function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){} }
+function getOrders(){ try{ return JSON.parse(localStorage.getItem(ORD_KEY))||{}; }catch(e){ return {}; } }
+function setOrders(o){ try{ localStorage.setItem(ORD_KEY, JSON.stringify(o)); }catch(e){} }
 
 /* ---------- 工具 ---------- */
 const $ = sel => document.querySelector(sel);
@@ -447,15 +484,35 @@ function shortDate(iso){
   const dt = new Date(iso+'T00:00:00');
   return `${dt.getMonth()+1}/${dt.getDate()}`;
 }
+function flavorById(id){ return S.flavors.find(f=>f.id===id); }
+function extraUnitPrice(e){
+  const f = flavorById(e.fid) || S.flavors[0];
+  if(e.mode==='orig') return f.orig;
+  if(e.mode==='custom') return +e.price||0;
+  return f.price;
+}
 
 /* ---------- 計算核心 ---------- */
 function calc(){
   const P = S.params;
-  let cakeQty=0, cakeAmt=0, lines=[];
+  // 初始訂購
+  let initQty=0, initAmt=0, initLines=[];
   for(const f of S.flavors){
     const q = +(S.qty[f.id]||0);
-    if(q>0){ cakeQty+=q; cakeAmt += q*f.price; lines.push({name:f.name, price:f.price, q, sub:q*f.price}); }
+    if(q>0){ initQty+=q; initAmt += q*f.price; initLines.push({name:f.name, price:f.price, q, sub:q*f.price}); }
   }
+  // 追加
+  let extraQty=0, extraAmt=0, extraLines=[];
+  for(const e of S.extras){
+    const q=+e.qty||0; if(q<=0) continue;
+    const f=flavorById(e.fid); if(!f) continue;
+    const u=extraUnitPrice(e);
+    extraQty+=q; extraAmt+=q*u;
+    extraLines.push({name:f.name, price:u, q, sub:q*u, note:e.note||'', mode:e.mode});
+  }
+  const cakeQty = initQty + extraQty;
+  const cakeAmt = initAmt + extraAmt;
+  // 贈送
   let giftQty=0, giftLines=[];
   if(S.giftOn){
     for(const f of S.flavors){
@@ -466,19 +523,24 @@ function calc(){
   const oilQty = S.oilOn ? +S.oilQty||0 : 0;
   const oilAmt = oilQty * (+S.oilPrice||0);
 
-  const orderAmt = cakeAmt + oilAmt;                       // 訂金計算基礎
-  const deposit  = Math.round(orderAmt * P.depositPct/100);
-  const balanceCake = orderAmt - deposit;                  // 蛋糕(+油飯)尾款
+  const orderAmt = cakeAmt + oilAmt;
+  const depositAuto = Math.round((initAmt + oilAmt) * P.depositPct/100);   // 訂金只看初始訂購
+  const deposit = S.depOvOn ? Math.round(+S.depOvAmt||0) : depositAuto;
+  const balanceCake = orderAmt - deposit;
 
-  // 免運箱數
+  // 免運箱數（購買總數含追加；贈送不算）
   const freeBoxes = Math.floor(cakeQty/P.freePerCake) + Math.floor(oilQty/P.freePerOil);
-  let usedMain=0, usedIsland=0, shipRows=[];
+  let usedMain=0, usedIsland=0, scheduledCake=0, scheduledOil=0, doneCnt=0, shipCnt=0;
   for(const sp of S.ships){
     const c=+sp.cake||0, o=+sp.oil||0;
     if(c<=0 && o<=0) continue;
-    const b = Math.ceil(c/P.boxCapCake) + Math.ceil(o/P.boxCapOil);
-    if(sp.island) usedIsland+=b; else usedMain+=b;
-    shipRows.push({...sp, boxes:b});
+    shipCnt++;
+    scheduledCake+=c; scheduledOil+=o;
+    if(sp.done) doneCnt++;
+    if(sp.mode==='delivery'){
+      const b = Math.ceil(c/P.boxCapCake) + Math.ceil(o/P.boxCapOil);
+      if(sp.island) usedIsland+=b; else usedMain+=b;
+    }
   }
   const extraMain = Math.max(0, usedMain - freeBoxes);
   const shipFee = extraMain*P.boxFee + usedIsland*P.islandFee;
@@ -515,8 +577,11 @@ function calc(){
   finalBalance += tax;
 
   return {
-    cakeQty, cakeAmt, lines, giftQty, giftLines, oilQty, oilAmt, orderAmt,
-    deposit, balanceCake, freeBoxes, usedMain, usedIsland, extraMain, shipFee, shipRows,
+    initQty, initAmt, initLines, extraQty, extraAmt, extraLines,
+    cakeQty, cakeAmt, giftQty, giftLines, oilQty, oilAmt, orderAmt,
+    depositAuto, deposit, balanceCake,
+    freeBoxes, usedMain, usedIsland, extraMain, shipFee,
+    scheduledCake, scheduledOil, doneCnt, shipCnt,
     discounts, discountTotal, addons, addonTotal, charity, tax, preTaxTotal, finalBalance,
     qualify: cakeQty >= S.params.minBoxes,
     cardFree: cakeAmt >= S.params.cardThreshold,
@@ -524,34 +589,47 @@ function calc(){
 }
 
 /* ---------- 話術產生 ---------- */
+function cakeLinesText(C){
+  let t='';
+  for(const l of C.initLines) t+=`${l.name} ${l.price}*${l.q}=${fmt(l.sub)}元\n`;
+  if(C.extraLines.length){
+    t+='\n';
+    for(const l of C.extraLines){
+      t+=`【追加】${l.name} ${l.price}*${l.q}=${fmt(l.sub)}元${l.note?`（${l.note}）`:''}${l.mode==='orig'?'（原價計）':''}\n`;
+    }
+  }
+  if(C.giftLines.length){
+    t+='【贈送】';
+    t+=C.giftLines.map(g=>`${g.name}*${g.q}`).join('、')+'\n';
+  }
+  if(C.oilQty>0) t+=`油飯 ${fmt(+S.oilPrice)}*${C.oilQty}=${fmt(C.oilAmt)}元\n`;
+  return t;
+}
 function msgQuote(C){
   const P=S.params;
-  let t=`🔸彌月蛋糕訂購滿${P.minBoxes}顆即享彌月價\n【彌月蛋糕金額】\n`;
-  if(C.lines.length===0) t+='（尚未輸入蛋糕數量）\n';
-  for(const l of C.lines) t+=`${l.name} ${l.price}*${l.q} = ${fmt(l.sub)}\n`;
-  if(C.giftLines.length){
-    t+=`【贈送】\n`;
-    for(const g of C.giftLines) t+=`${g.name}*${g.q}\n`;
-  }
-  if(C.oilQty>0) t+=`油飯 ${fmt(+S.oilPrice)}*${C.oilQty} = ${fmt(C.oilAmt)}\n`;
-  t+=`\n◆ 訂購蛋糕總數：${C.cakeQty}顆`;
+  let t=`【彌月蛋糕訂購滿${P.minBoxes}顆即享彌月價】\n`;
+  t+= C.initLines.length? cakeLinesText(C) : '（尚未輸入蛋糕數量）\n';
+  t+=`\n🟡 訂購蛋糕總數：${C.cakeQty}顆`;
+  if(C.extraQty>0) t+=`（含追加${C.extraQty}顆）`;
   if(C.giftQty>0) t+=`＋贈送${C.giftQty}顆`;
-  t+=`\n◆ ${C.oilQty>0?'蛋糕＋油飯總額':'蛋糕總額'}：${fmt(C.orderAmt)}元`;
-  t+=`\n◆ 訂金${P.depositPct}%：${fmt(C.deposit)}元${S.paidOn?'(已付款)':''}`;
-  t+=`\n◆ 目前蛋糕尾款：${fmt(C.orderAmt)}-${fmt(C.deposit)}=${fmt(C.balanceCake)}元`;
-  t+=`\n(宅配運費、加購品項另計，於尾款統一做收取)\n`;
-  t+=`\n🔸免運箱數計算`;
-  t+=`\n✅ 蛋糕訂購每滿${P.freePerCake}顆可優惠1箱宅配箱數(一箱最多可裝1-${P.boxCapCake}顆蛋糕，以此類推...)`;
-  t+=`\n✅ 一箱宅配箱可裝1-${P.boxCapCake}顆蛋糕`;
-  t+=`\n✅ 目前蛋糕訂購滿${C.cakeQty}顆→享${C.freeBoxes}箱免運優惠`;
-  t+=`\n✅ 扣除免運優惠後，如有多的宅配需要寄送，代寄運費一箱${P.boxFee}元(本島)，離島一箱${P.islandFee}元另計\n`;
+  t+=`\n🟡 ${C.oilQty>0?'蛋糕＋油飯總額':'蛋糕總額'}：${fmt(C.orderAmt)}元\n`;
+  t+=`\n【彌月禮盒需先支付${P.depositPct}%訂金才視為正式訂購】`;
+  t+=`\n🟡 訂金${P.depositPct}%：${fmt(C.deposit)}元${S.paidOn?' (已付款)':''}`;
+  t+=`\n🟡 目前蛋糕尾款：${fmt(C.orderAmt)}-${fmt(C.deposit)}=${fmt(C.balanceCake)}元`;
+  t+=`\n(宅配運費另計，如有運費金額會一併於尾款統一做收取)\n`;
+  t+=`\n【宅配須知】`;
+  t+=`\n☑️ 宅配運費計算皆以「箱」為單位做計算 (不是宅配點唷~)`;
+  t+=`\n☑️ 蛋糕訂購每滿${P.freePerCake}顆可優惠1箱宅配箱數 (一箱最多可裝1-${P.boxCapCake}顆，以此類推...)`;
+  t+=`\n☑️ 一箱最多可裝1-${P.boxCapCake}顆蛋糕或1-${P.boxCapOil}盒油飯`;
+  t+=`\n☑️ 目前蛋糕訂購滿${C.cakeQty}顆→可優惠${C.freeBoxes}箱運費`;
+  t+=`\n☑️ 扣除免運優惠後，如有多的宅配需要寄送，代寄運費一箱${P.boxFee}元(本島)，離島一箱${P.islandFee}元另計\n`;
   const usedTotal = C.usedMain + C.usedIsland;
   if(usedTotal>0){
     t+=`\n宅配使用箱數：${usedTotal}箱`;
     t+=`\n宅配優惠箱數：${C.freeBoxes}箱`;
-    if(C.extraMain>0) t+=`\n◆ 需額外支付箱運費(${P.boxFee}*${C.extraMain}=${fmt(C.extraMain*P.boxFee)}元)`;
-    if(C.usedIsland>0) t+=`\n◆ 離島箱運費(${P.islandFee}*${C.usedIsland}=${fmt(C.usedIsland*P.islandFee)}元)`;
-    if(C.extraMain===0 && C.usedIsland===0) t+=`\n◆ 目前免運額度內，無需額外支付運費`;
+    if(C.extraMain>0) t+=`\n🟡 需額外支付${C.extraMain}箱運費(${P.boxFee}*${C.extraMain}=${fmt(C.extraMain*P.boxFee)}元) 如有更新小編會再幫補上金額❤️`;
+    if(C.usedIsland>0) t+=`\n🟡 離島箱運費(${P.islandFee}*${C.usedIsland}=${fmt(C.usedIsland*P.islandFee)}元)`;
+    if(C.extraMain===0 && C.usedIsland===0) t+=`\n🟡 目前免運額度內，無需額外支付運費`;
     t+='\n';
   }else{
     t+=`\n宅配優惠箱數：${C.freeBoxes}箱（如需宅配可再跟我們說，會幫您試算運費）\n`;
@@ -560,20 +638,19 @@ function msgQuote(C){
     t+=`\n【額外折扣】\n${d.label}\n${d.calc?d.calc+'，':''}折扣${fmt(d.amt)}元\n`;
   }
   if(C.charity>0){
-    t+=`\n【公益禮盒提撥捐款】\n訂購金額 ${fmt(C.cakeAmt)}*${P.charityPct/100} = ${fmt(C.charity)}\n➡ 將捐至 伊甸基金會-象圈工程計畫 做使用\n`;
+    t+=`\n【公益禮盒提撥捐款】\n訂購金額 ${fmt(C.cakeAmt)}*${S.params.charityPct/100} = ${fmt(C.charity)}\n➡ 將捐至 伊甸基金會-象圈工程計畫 做使用\n`;
   }
   if(C.addons.length){
     t+=`\n【加購品項】\n`;
     for(const a of C.addons) t+=`${a.name}${a.q?` ${a.unit}*${a.q}`:''} = ${fmt(a.amt)}元\n`;
   }
   if(C.tax>0) t+=`\n【發票】開立發票酌收5%營業稅：${fmt(C.tax)}元\n`;
-  // 總尾款組字
   let parts=[`蛋糕尾款${fmt(C.balanceCake)}`];
   if(C.shipFee>0) parts.push(`總運費${fmt(C.shipFee)}`);
   if(C.addonTotal>0) parts.push(`加購品項${fmt(C.addonTotal)}`);
   if(C.discountTotal>0) parts.push(`-折扣${fmt(C.discountTotal)}`);
   if(C.tax>0) parts.push(`營業稅${fmt(C.tax)}`);
-  t+=`\n🌟總尾款：(${parts.join('+').replace('+-','-')})=${fmt(C.finalBalance)}元`;
+  t+=`\n⭐總尾款：(${parts.join('+').replace(/\+\-/g,'-')})=${fmt(C.finalBalance)}元`;
   if(S.firstDate){
     t+=`\n\n【彌月蛋糕取貨提醒】`;
     t+=`\n📌 第一次取貨/到貨日：${shortDate(S.firstDate)}`;
@@ -663,26 +740,24 @@ function msgConfirm(C){
 }
 function msgFinal(C){
   const P=S.params;
-  let t=`媽咪/爸比您好✨ 幫您做金額結算嚕~\n\n【彌月蛋糕金額】\n`;
-  for(const l of C.lines) t+=`${l.name} ${l.price}*${l.q} = ${fmt(l.sub)}\n`;
-  if(C.giftLines.length){
-    t+=`【贈送】\n`;
-    for(const g of C.giftLines) t+=`${g.name}*${g.q}\n`;
-  }
-  if(C.oilQty>0) t+=`油飯 ${fmt(+S.oilPrice)}*${C.oilQty} = ${fmt(C.oilAmt)}\n`;
-  t+=`\n◆ ${C.oilQty>0?'蛋糕＋油飯總額':'蛋糕總額'}：${fmt(C.orderAmt)}元`;
-  t+=`\n◆ 已付訂金：${fmt(C.deposit)}元`;
-  t+=`\n◆ 蛋糕尾款：${fmt(C.orderAmt)}-${fmt(C.deposit)}=${fmt(C.balanceCake)}元`;
+  let t=`媽咪/爸比您好✨ 幫您做尾款結算嚕~\n\n【彌月蛋糕金額】\n`;
+  t+= cakeLinesText(C);
+  t+=`\n🟡 訂購蛋糕總數：${C.cakeQty}顆`;
+  if(C.extraQty>0) t+=`（含追加${C.extraQty}顆）`;
+  if(C.giftQty>0) t+=`＋贈送${C.giftQty}顆`;
+  t+=`\n🟡 ${C.oilQty>0?'蛋糕＋油飯總額':'蛋糕總額'}：${fmt(C.orderAmt)}元`;
+  t+=`\n🟡 已付訂金：${fmt(C.deposit)}元`;
+  t+=`\n🟡 蛋糕尾款：${fmt(C.orderAmt)}-${fmt(C.deposit)}=${fmt(C.balanceCake)}元`;
   if(C.shipFee>0){
-    t+=`\n◆ 總運費：${fmt(C.shipFee)}元`;
+    t+=`\n🟡 總運費：${fmt(C.shipFee)}元`;
     if(C.extraMain>0) t+=`（本島超出${C.extraMain}箱×${P.boxFee}${C.usedIsland>0?`＋離島${C.usedIsland}箱×${P.islandFee}`:''}）`;
     else if(C.usedIsland>0) t+=`（離島${C.usedIsland}箱×${P.islandFee}）`;
   }
-  if(C.addonTotal>0) t+=`\n◆ 加購品項：${fmt(C.addonTotal)}元`;
-  for(const d of C.discounts) t+=`\n◆ ${d.label}：-${fmt(d.amt)}元`;
-  if(C.tax>0) t+=`\n◆ 營業稅5%：${fmt(C.tax)}元`;
+  if(C.addonTotal>0) t+=`\n🟡 加購品項：${fmt(C.addonTotal)}元`;
+  for(const d of C.discounts) t+=`\n🟡 ${d.label}：-${fmt(d.amt)}元`;
+  if(C.tax>0) t+=`\n🟡 營業稅5%：${fmt(C.tax)}元`;
   if(C.charity>0) t+=`\n\n【公益禮盒提撥捐款】\n訂購金額 ${fmt(C.cakeAmt)}*${P.charityPct/100} = ${fmt(C.charity)}\n➡ 將捐至 伊甸基金會-象圈工程計畫 做使用`;
-  t+=`\n\n🌟總尾款：${fmt(C.finalBalance)}元`;
+  t+=`\n\n⭐總尾款：${fmt(C.finalBalance)}元`;
   t+=`\n\n【匯款轉帳資訊】
 ● 銀行戶名：根號拾食品股份有限公司
 ● 銀行戶代碼：009(彰化銀行)
@@ -694,7 +769,7 @@ function msgFinal(C){
   return t;
 }
 
-/* ---------- 畫面渲染 ---------- */
+/* ---------- 畫面渲染（輸入框只建一次、就地同步，避免打字失焦） ---------- */
 function qtyControl(val, onChange){
   const inp=el('input',{type:'number',min:'0',value:val});
   inp.addEventListener('input',()=>onChange(Math.max(0,+inp.value||0)));
@@ -702,7 +777,6 @@ function qtyControl(val, onChange){
   const plus=el('button',{type:'button','aria-label':'增加',onclick:()=>{inp.value=(+inp.value||0)+1;onChange(+inp.value);}},'＋');
   return {wrap: el('span',{class:'qty'},minus,inp,plus), inp};
 }
-/* 輸入框只建立一次，之後同步數值即可——重建 DOM 會讓正在打字的欄位失焦 */
 let flavorRefs=null;
 function renderFlavors(){
   const tb=$('#flavorRows');
@@ -728,13 +802,52 @@ function renderFlavors(){
     r.subCell.textContent = q>0?fmt(q*f.price):'–';
   }
 }
+let extraRowCount=-1, extraSubSpans=[];
+function renderExtras(){
+  const wrap=$('#extraRows');
+  if(S.extras.length!==extraRowCount){
+    extraRowCount=S.extras.length; extraSubSpans=[];
+    wrap.innerHTML='';
+    S.extras.forEach((ex,i)=>{
+      const flavorSel=el('select',{onchange:e=>{ex.fid=e.target.value;update();}},
+        ...S.flavors.map(f=>el('option',{value:f.id},f.name)));
+      flavorSel.value=ex.fid||S.flavors[0].id; ex.fid=flavorSel.value;
+      const modeSel=el('select',{onchange:e=>{ex.mode=e.target.value;update();}},
+        el('option',{value:'miyue'},'彌月價'),
+        el('option',{value:'orig'},'原價'),
+        el('option',{value:'custom'},'自訂'));
+      modeSel.value=ex.mode||'miyue'; ex.mode=modeSel.value;
+      const priceInp=el('input',{type:'number',class:'inline-num',min:'0',value:ex.price||0,style:'width:70px',
+        oninput:e=>{ex.price=+e.target.value||0;update();}});
+      const subSpan=el('span',{class:'boxinfo'},'');
+      const row=el('div',{class:'shiprow'},
+        flavorSel,
+        el('input',{type:'number',class:'inline-num',min:'0',value:ex.qty||0,style:'width:60px',
+          oninput:e=>{ex.qty=+e.target.value||0;update();}}),
+        '顆', modeSel, priceInp,
+        el('input',{type:'text',placeholder:'備註 例:7/2追加',value:ex.note||'',style:'width:110px',
+          oninput:e=>{ex.note=e.target.value;save();updateMsgOnly();}}),
+        subSpan,
+        el('button',{class:'del','aria-label':'刪除追加',onclick:()=>{S.extras.splice(i,1);update();}},'✕'),
+      );
+      wrap.append(row); extraSubSpans.push({subSpan, priceInp});
+    });
+  }
+  S.extras.forEach((ex,i)=>{
+    const ref=extraSubSpans[i]; if(!ref) return;
+    const u=extraUnitPrice(ex), q=+ex.qty||0;
+    ref.priceInp.style.display = ex.mode==='custom' ? '' : 'none';
+    if(ex.mode!=='custom' && document.activeElement!==ref.priceInp) ref.priceInp.value=u;
+    ref.subSpan.textContent = q>0 ? `${u}×${q} = ${fmt(u*q)}元` : '';
+  });
+}
 let giftRefs=null;
 function renderGifts(C){
   $('#giftArea').style.display = S.giftOn?'':'none';
   $('#giftOn').checked = S.giftOn;
   if(!S.giftOn) return;
   const sug=Math.floor(C.cakeQty/10);
-  $('#giftSuggest').textContent=`目前購買 ${C.cakeQty} 盒 → 建議贈送 ${sug} 盒（已填 ${C.giftQty} 盒）。贈送口味僅限標🎁者。`;
+  $('#giftSuggest').textContent=`目前購買 ${C.cakeQty} 盒（含追加）→ 建議贈送 ${sug} 盒（已填 ${C.giftQty} 盒）。贈送口味僅限標🎁者。`;
   const tb=$('#giftRows');
   if(!giftRefs){
     giftRefs={}; tb.innerHTML='';
@@ -754,37 +867,68 @@ function renderGifts(C){
     r.tag.textContent = q>0?'贈送 $0':'';
   }
 }
-let shipRowCount=-1, shipBoxSpans=[];
+let shipRowCount=-1, shipRefs=[];
 function renderShips(){
   const wrap=$('#shipRows');
   const P=S.params;
   if(S.ships.length!==shipRowCount){
-    shipRowCount=S.ships.length; shipBoxSpans=[];
+    shipRowCount=S.ships.length; shipRefs=[];
     wrap.innerHTML='';
     S.ships.forEach((sp,i)=>{
       const boxSpan=el('span',{class:'boxinfo'},'');
-      const row=el('div',{class:'shiprow'},
-        el('input',{type:'text',placeholder:'日期/地點 (選填)',value:sp.label||'',style:'width:130px',
-          oninput:e=>{sp.label=e.target.value;save();}}),
-        '蛋糕',
-        el('input',{type:'number',class:'inline-num',min:'0',value:sp.cake||0,style:'width:62px',
-          oninput:e=>{sp.cake=+e.target.value||0;update();}}),
-        '顆　油飯',
-        el('input',{type:'number',class:'inline-num',min:'0',value:sp.oil||0,style:'width:62px',
-          oninput:e=>{sp.oil=+e.target.value||0;update();}}),
-        '盒',
-        (()=>{const sel=el('select',{onchange:e=>{sp.island=e.target.value==='1';update();}},
-          el('option',{value:'0'},'本島'), el('option',{value:'1'},'離島'));
-          sel.value=sp.island?'1':'0'; return sel;})(),
-        boxSpan,
-        el('button',{class:'del','aria-label':'刪除批次',onclick:()=>{S.ships.splice(i,1);update();}},'✕'),
+      const modeSel=el('select',{onchange:e=>{sp.mode=e.target.value;update();}},
+        el('option',{value:'delivery'},'宅配'),
+        el('option',{value:'pickup'},'門市自取'));
+      modeSel.value=sp.mode||'delivery';
+      const islandSel=el('select',{onchange:e=>{sp.island=e.target.value==='1';update();}},
+        el('option',{value:'0'},'本島'), el('option',{value:'1'},'離島'));
+      islandSel.value=sp.island?'1':'0';
+      const doneChk=el('input',{type:'checkbox',onchange:e=>{sp.done=e.target.checked;update();}});
+      doneChk.checked=!!sp.done;
+      const line2=el('div',{class:'row'},
+        el('input',{type:'text',placeholder:'收件人',value:sp.receiver||'',style:'width:90px',
+          oninput:e=>{sp.receiver=e.target.value;save();}}),
+        el('input',{type:'tel',placeholder:'聯絡電話',value:sp.phone||'',style:'width:120px',
+          oninput:e=>{sp.phone=e.target.value;save();}}),
+        el('input',{type:'text',placeholder:'收件地址',value:sp.addr||'',style:'flex:1;min-width:180px',
+          oninput:e=>{sp.addr=e.target.value;save();}}),
       );
-      wrap.append(row); shipBoxSpans.push(boxSpan);
+      const block=el('div',{class:'shipblock'+(sp.done?' done':'')},
+        el('div',{class:'row'},
+          modeSel,
+          el('input',{type:'text',placeholder:'品項摘要 例:法式×24',value:sp.label||'',style:'width:130px',
+            oninput:e=>{sp.label=e.target.value;save();}}),
+          '蛋糕',
+          el('input',{type:'number',class:'inline-num',min:'0',value:sp.cake||0,style:'width:60px',
+            oninput:e=>{sp.cake=+e.target.value||0;update();}}),
+          '顆　油飯',
+          el('input',{type:'number',class:'inline-num',min:'0',value:sp.oil||0,style:'width:60px',
+            oninput:e=>{sp.oil=+e.target.value||0;update();}}),
+          '盒',
+          islandSel,
+          el('input',{type:'date',value:sp.date||'',onchange:e=>{sp.date=e.target.value;save();}}),
+          boxSpan,
+          el('label',{class:'donechk'}, doneChk, '完成'),
+          el('button',{class:'del','aria-label':'刪除批次',onclick:()=>{S.ships.splice(i,1);update();}},'✕'),
+        ),
+        line2,
+      );
+      wrap.append(block);
+      shipRefs.push({boxSpan, block, islandSel, line2});
     });
   }
   S.ships.forEach((sp,i)=>{
-    const b=Math.ceil((+sp.cake||0)/P.boxCapCake)+Math.ceil((+sp.oil||0)/P.boxCapOil);
-    if(shipBoxSpans[i]) shipBoxSpans[i].textContent=`→ ${b} 箱`;
+    const r=shipRefs[i]; if(!r) return;
+    const isDelivery = (sp.mode||'delivery')==='delivery';
+    r.islandSel.style.display = isDelivery?'':'none';
+    r.line2.style.display = isDelivery?'':'none';
+    r.block.classList.toggle('done', !!sp.done);
+    if(isDelivery){
+      const b=Math.ceil((+sp.cake||0)/P.boxCapCake)+Math.ceil((+sp.oil||0)/P.boxCapOil);
+      r.boxSpan.textContent=`→ ${b} 箱`;
+    }else{
+      r.boxSpan.textContent='自取・不算箱';
+    }
   });
 }
 let addonRowCount=-1;
@@ -808,29 +952,38 @@ function renderAddons(){
 }
 function renderSummary(C){
   const P=S.params;
-  $('#totQty').textContent = `${C.cakeQty} 盒${C.giftQty?`＋贈${C.giftQty}`:''}`;
-  $('#totAmt').textContent = fmt(C.cakeAmt)+' 元';
-  // banner
+  $('#totQty').textContent = `${C.initQty} 盒`;
+  $('#totAmt').textContent = fmt(C.initAmt)+' 元';
+  $('#sumCust').textContent = S.customer ? `｜${S.customer}` : '';
   const qb=$('#qualifyBanner');
   if(C.cakeQty===0) qb.innerHTML='';
   else if(!C.qualify) qb.innerHTML=`<div class="warn">⚠ 目前 ${C.cakeQty} 盒，未滿 ${P.minBoxes} 盒，不符彌月優惠資格（需改用原價計算或補足盒數）</div>`;
   else qb.innerHTML=`<div class="ok-banner">✓ 已滿 ${P.minBoxes} 盒，符合彌月優惠價資格</div>`;
+  // 排程進度
+  const totalToSchedule = C.cakeQty + C.giftQty;
+  const remain = totalToSchedule - C.scheduledCake;
+  $('#schedProgress').innerHTML = totalToSchedule>0
+    ? `已安排 <b>${C.scheduledCake}</b>／${totalToSchedule} 顆（含贈送）${remain>0?`，還剩 <b style="color:var(--red)">${remain}</b> 顆未安排`:remain<0?`，<b style="color:var(--red)">超排 ${-remain} 顆，請檢查！</b>`:'，全部安排完畢 ✓'}｜完成 ${C.doneCnt}/${C.shipCnt} 批`
+    : '（尚未輸入訂購數量）';
   // chips
   $('#chips').innerHTML =
     `<span class="chip ${C.qualify?'on':'off'}">${C.qualify?'✓':'✗'} 彌月優惠(滿${P.minBoxes}盒)</span>`+
     `<span class="chip ${C.cardFree?'on':'off'}">${C.cardFree?'✓':'✗'} 免費客製小卡(滿${fmt(P.cardThreshold)})</span>`+
+    (C.extraQty>0?`<span class="chip on">追加 ${C.extraQty} 顆</span>`:'')+
     (S.charityOn?`<span class="chip on">公益捐款 ${fmt(C.charity)} 元</span>`:'');
   // grid
   const g=$('#sumGrid');
   let rows=[
-    ['蛋糕總數', `${C.cakeQty} 盒${C.giftQty?`＋贈${C.giftQty}`:''}`],
-    ['蛋糕總額', fmt(C.cakeAmt)+' 元'],
+    ['初始訂購', `${C.initQty} 盒／${fmt(C.initAmt)} 元`],
   ];
+  if(C.extraQty>0) rows.push(['追加訂購', `${C.extraQty} 盒／${fmt(C.extraAmt)} 元`]);
+  if(C.giftQty>0) rows.push(['贈送', `${C.giftQty} 盒／0 元`]);
+  rows.push(['蛋糕總計', `${C.cakeQty} 盒／${fmt(C.cakeAmt)} 元`]);
   if(C.oilAmt>0) rows.push(['油飯', `${C.oilQty} 盒／${fmt(C.oilAmt)} 元`]);
   rows.push(
     ['divider'],
-    [`訂金 ${P.depositPct}%${S.paidOn?'（已收）':''}`, fmt(C.deposit)+' 元','red'],
-    ['蛋糕尾款', fmt(C.balanceCake)+' 元'],
+    [`訂金 ${P.depositPct}%${S.depOvOn?'（手動）':''}${S.paidOn?'（已收）':''}`, fmt(C.deposit)+' 元','red'],
+    ['目前尾款（蛋糕）', fmt(C.balanceCake)+' 元'],
     ['divider'],
     ['免運箱數額度', C.freeBoxes+' 箱','green'],
   );
@@ -849,7 +1002,6 @@ function renderSummary(C){
     g.append(el('div',{class:'lbl'},r[0]), el('div',{class:'val '+(r[2]||'')},r[1]));
   }
   $('#bigNum').textContent = fmt(C.finalBalance)+' 元';
-  // date calc
   $('#dateCalc').textContent = S.firstDate
     ? `→ 追加優惠截止：${addDays(S.firstDate,7)}｜取貨期限截止：${addDays(S.firstDate,30)}`
     : '（填入後自動算出追加截止日 +7 天、取貨截止日 +30 天）';
@@ -863,11 +1015,75 @@ function renderMsg(C){
 }
 function update(){
   const C=calc();
-  renderFlavors(); renderGifts(C); renderShips(); renderAddons();
+  renderFlavors(); renderExtras(); renderGifts(C); renderShips(); renderAddons();
   renderSummary(C); renderMsg(C);
   save();
 }
 function updateMsgOnly(){ renderMsg(calc()); }
+
+/* ---------- 訂單管理 ---------- */
+function refreshOrderSelect(){
+  const sel=$('#orderSelect');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">－ 已存訂單 －</option>';
+  const orders=getOrders();
+  Object.keys(orders).sort().forEach(name=>{
+    sel.append(el('option',{value:name},name));
+  });
+  if(orders[cur]) sel.value=cur;
+}
+$('#btnSaveOrder').addEventListener('click',()=>{
+  const name=(S.customer||'').trim();
+  if(!name){ alert('請先填「客人名稱」再儲存'); $('#custName').focus(); return; }
+  const orders=getOrders();
+  orders[name]=JSON.parse(JSON.stringify(S));
+  setOrders(orders); refreshOrderSelect();
+  $('#orderSelect').value=name;
+  const b=$('#btnSaveOrder'); b.textContent='✓ 已儲存'; setTimeout(()=>b.textContent='💾 儲存這筆',1500);
+});
+$('#btnLoadOrder').addEventListener('click',()=>{
+  const name=$('#orderSelect').value;
+  if(!name){ alert('請先從下拉選單選一筆訂單'); return; }
+  const orders=getOrders();
+  if(!orders[name]){ alert('找不到這筆訂單'); return; }
+  localStorage.setItem(LS_KEY, JSON.stringify(orders[name]));
+  location.reload();
+});
+$('#btnDeleteOrder').addEventListener('click',()=>{
+  const name=$('#orderSelect').value;
+  if(!name){ alert('請先從下拉選單選一筆訂單'); return; }
+  if(!confirm(`確定刪除「${name}」這筆已存訂單？（目前畫面上的數字不受影響）`)) return;
+  const orders=getOrders(); delete orders[name]; setOrders(orders); refreshOrderSelect();
+});
+$('#btnNewOrder').addEventListener('click',()=>{
+  if(!confirm('開新訂單？目前畫面若還沒按「儲存這筆」會遺失。（價格設定會保留）')) return;
+  const keep={flavors:S.flavors, params:S.params};
+  const s=blankState(); s.flavors=keep.flavors; s.params=keep.params;
+  localStorage.setItem(LS_KEY, JSON.stringify(s));
+  location.reload();
+});
+$('#btnExport').addEventListener('click',()=>{
+  const data={version:3, orders:getOrders(), current:S};
+  const blob=new Blob([JSON.stringify(data)],{type:'application/json'});
+  const a=el('a',{href:URL.createObjectURL(blob),download:'根號拾彌月訂單備份.json'});
+  document.body.append(a); a.click(); a.remove();
+});
+$('#btnImport').addEventListener('click',()=>$('#importFile').click());
+$('#importFile').addEventListener('change',e=>{
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const data=JSON.parse(reader.result);
+      if(!data.orders) throw new Error('格式不對');
+      const merged={...getOrders(), ...data.orders};
+      setOrders(merged); refreshOrderSelect();
+      alert(`匯入完成，共 ${Object.keys(data.orders).length} 筆訂單（同名會覆蓋）`);
+    }catch(err){ alert('匯入失敗：檔案格式不正確'); }
+    e.target.value='';
+  };
+  reader.readAsText(file);
+});
 
 /* ---------- 設定視窗 ---------- */
 function renderSettings(){
@@ -879,9 +1095,17 @@ function renderSettings(){
   });
   document.querySelectorAll('#dlgSettings [data-k]').forEach(inp=>{
     inp.value=S.params[inp.dataset.k];
-    inp.oninput=()=>{S.params[inp.dataset.k]=+inp.value||0; $('#noteBoxFee').textContent=S.params.boxFee;
-      $('#noteIslandFee').textContent=S.params.islandFee; $('#forkPriceLbl').textContent=S.params.forkPrice; update();};
+    inp.oninput=()=>{S.params[inp.dataset.k]=+inp.value||0; syncNotes(); update();};
   });
+}
+function syncNotes(){
+  $('#noteBoxFee').textContent=S.params.boxFee;
+  $('#noteIslandFee').textContent=S.params.islandFee;
+  $('#forkPriceLbl').textContent=S.params.forkPrice;
+  $('#noteCapCake').textContent=S.params.boxCapCake;
+  $('#noteCapOil').textContent=S.params.boxCapOil;
+  $('#noteFreePer').textContent=S.params.freePerCake;
+  $('#noteFreeOil').textContent=S.params.freePerOil;
 }
 
 /* ---------- 事件繫結 ---------- */
@@ -890,14 +1114,17 @@ function bind(id, key, isNum){
   if(e.type==='checkbox'){ e.checked=!!S[key]; e.addEventListener('change',()=>{S[key]=e.checked;update();}); }
   else{ e.value=S[key]||(isNum?0:''); e.addEventListener('input',()=>{S[key]=isNum?(+e.value||0):e.value;update();}); }
 }
+bind('#custName','customer');
 bind('#giftOn','giftOn'); bind('#mzOn','mzOn'); bind('#tasteOn','tasteOn');
 bind('#tasteN','tasteN',true); bind('#charityOn','charityOn');
 bind('#manualOn','manualOn'); bind('#manualAmt','manualAmt',true); bind('#manualNote','manualNote');
 bind('#oilOn','oilOn'); bind('#oilQty','oilQty',true); bind('#oilPrice','oilPrice',true);
 bind('#forkOn','forkOn'); bind('#forkQty','forkQty',true);
 bind('#firstDate','firstDate'); bind('#paidOn','paidOn'); bind('#taxOn','taxOn');
+bind('#depOvOn','depOvOn'); bind('#depOvAmt','depOvAmt',true);
 
-$('#addShip').addEventListener('click',()=>{S.ships.push({label:'',cake:0,oil:0,island:false});update();});
+$('#addExtra').addEventListener('click',()=>{S.extras.push({fid:S.flavors[0].id,qty:0,mode:'miyue',price:0,note:''});update();});
+$('#addShip').addEventListener('click',()=>{S.ships.push({mode:'delivery',label:'',cake:0,oil:0,island:false,receiver:'',phone:'',addr:'',date:'',done:false});update();});
 $('#addAddon').addEventListener('click',()=>{S.addons.push({name:'',amt:0});update();});
 $('#msgTabs').addEventListener('click',e=>{
   const b=e.target.closest('.tab'); if(!b) return;
@@ -918,22 +1145,17 @@ $('#btnCloseSettings').addEventListener('click',()=>$('#dlgSettings').close());
 $('#btnRestoreDefault').addEventListener('click',()=>{
   S.flavors=JSON.parse(JSON.stringify(DEFAULT_FLAVORS));
   S.params={...DEFAULT_PARAMS};
-  renderSettings(); update();
+  renderSettings(); syncNotes(); update();
 });
 $('#btnReset').addEventListener('click',()=>{
-  if(!confirm('清空目前這筆訂單的所有數字？（價格設定會保留）')) return;
+  if(!confirm('清空目前這筆訂單的所有數字？（價格設定與已存訂單會保留）')) return;
   const keep={flavors:S.flavors, params:S.params};
-  S=blankState(); S.flavors=keep.flavors; S.params=keep.params;
-  // re-sync form controls
-  ['#giftOn','#mzOn','#tasteOn','#charityOn','#manualOn','#oilOn','#forkOn','#paidOn','#taxOn']
-    .forEach(id=>{$(id).checked=false;});
-  ['#tasteN','#manualAmt','#oilQty','#oilPrice','#forkQty'].forEach(id=>{$(id).value=0;});
-  $('#manualNote').value=''; $('#firstDate').value='';
-  update();
+  const s=blankState(); s.flavors=keep.flavors; s.params=keep.params;
+  localStorage.setItem(LS_KEY, JSON.stringify(s));
+  location.reload();
 });
-$('#noteBoxFee').textContent=S.params.boxFee;
-$('#noteIslandFee').textContent=S.params.islandFee;
-$('#forkPriceLbl').textContent=S.params.forkPrice;
+syncNotes();
+refreshOrderSelect();
 update();
 </script>
 
