@@ -320,6 +320,11 @@ dialog .setrow input{width:80px}
     <h2><span class="tag">5</span>分批取貨・出貨排程 <span class="hint">跟 Excel 一樣一批一列；只有宅配會算箱數運費</span></h2>
     <div id="schedProgress" class="note" style="margin:0 0 8px"></div>
     <div id="shipRows"></div>
+    <datalist id="timeslotList">
+      <option value="13:00前"></option>
+      <option value="14:00-18:00"></option>
+      <option value="11:30-18:50"></option>
+    </datalist>
     <button class="btn small addbtn" id="addShip">＋ 新增批次</button>
     <div class="note">一箱裝 1-<span id="noteCapCake">12</span> 顆蛋糕（油飯 1-<span id="noteCapOil">24</span> 盒）。每滿 <span id="noteFreePer">12</span> 顆蛋糕免 1 箱（油飯每滿 <span id="noteFreeOil">30</span> 盒免 1 箱）；扣免運後多的箱數本島 <span id="noteBoxFee">200</span> 元／箱，離島 <span id="noteIslandFee">400</span> 元／箱（離島不適用免運）。</div>
   </section>
@@ -474,7 +479,7 @@ function loadState(){
     if(!raw) return blankState();
     const s = {...blankState(), ...JSON.parse(raw)};
     s.params = {...DEFAULT_PARAMS, ...s.params};
-    s.ships = (s.ships||[]).map(sp=>({mode:'delivery',label:'',cake:0,oil:0,island:false,receiver:'',phone:'',addr:'',date:'',done:false,...sp}));
+    s.ships = (s.ships||[]).map(sp=>({mode:'delivery',label:'',cake:0,oil:0,island:false,receiver:'',phone:'',addr:'',date:'',slot:'',done:false,...sp}));
     return s;
   }catch(e){ return blankState(); }
 }
@@ -933,7 +938,9 @@ function renderShips(){
             oninput:e=>{sp.oil=+e.target.value||0;update();}}),
           '盒',
           islandSel,
-          el('input',{type:'date',value:sp.date||'',onchange:e=>{sp.date=e.target.value;save();}}),
+          el('input',{type:'date',value:sp.date||'',title:'到貨/取貨日',onchange:e=>{sp.date=e.target.value;save();}}),
+          el('input',{type:'text',list:'timeslotList',placeholder:'時段',value:sp.slot||'',style:'width:100px',title:'到貨/取貨時間',
+            oninput:e=>{sp.slot=e.target.value;save();}}),
           boxSpan,
           el('label',{class:'donechk'}, doneChk, '完成'),
           el('button',{class:'del','aria-label':'刪除批次',onclick:()=>{S.ships.splice(i,1);update();}},'✕'),
@@ -1126,15 +1133,22 @@ function cloudReady(){
   }
   return true;
 }
-/* 仿原本 Excel 的「一位媽咪一個分頁」：批次表(按到貨日分組)＋未安排標記＋
-   左側 訂購總數/付款狀態/訂購資訊 區塊、E欄放話術(一行一格)，排版對齊原表 */
+/* 仿原本 Excel 的「一位媽咪一個分頁」：資料＋格式指令(meta)一起送，
+   Sheet 端照 meta 上紅字表頭/框線/下拉選單/核取方塊/日期格式 */
+const RED='#B00020', BLUE='#1A56C4';
 function buildCustomerSheet(C){
   const P=S.params;
   const rows=[];
+  const meta={
+    colWidths:{A:95,B:55,C:85,D:95,E:115,F:230,G:110,H:105,I:60,J:75,K:95,L:150},
+    styles:[], validations:[], checkboxes:[], dates:[], preserve:null,
+  };
   rows.push(['品項','數量','取貨方式','收件人','聯絡電話','地址','到貨/取貨時間','宅配使用箱數','KEY單','到貨日','已完成/領取','備註']);
+  meta.styles.push({range:'A1:L1', bold:true, color:RED, align:'center', border:true});
   // 批次列：照到貨日排序，日期不同就空一行分組（跟原 Excel 一樣）
   const batches=S.ships.filter(sp=>(+sp.cake||0)>0||(+sp.oil||0)>0);
   const sorted=[...batches].sort((a,b)=>String(a.date||'9999').localeCompare(String(b.date||'9999')));
+  const batchRowNums=[];
   let prevDate=null;
   for(const sp of sorted){
     const d=sp.date||'';
@@ -1148,41 +1162,59 @@ function buildCustomerSheet(C){
     if(oil>0) memo.push(`油飯${oil}盒`);
     rows.push([
       sp.label||'蛋糕', cake||oil, isDelivery?'宅配':'自取',
-      sp.receiver||'', sp.phone?("'"+sp.phone):'', sp.addr||'', '',
-      isDelivery?`${boxes}箱`:'', '',
-      sp.date?shortDate(sp.date):'', sp.done?'V':'', memo.join('、'),
+      sp.receiver||'', sp.phone?("'"+sp.phone):'', sp.addr||'', sp.slot||'',
+      isDelivery?`${boxes}箱`:'', false,
+      '', sp.done===true, memo.join('、'),
     ]);
+    const r=rows.length;
+    batchRowNums.push(r);
+    meta.styles.push({range:`A${r}:L${r}`, align:'center', border:true});
+    meta.validations.push({range:`C${r}`, list:['宅配','自取']});
+    meta.validations.push({range:`G${r}`, list:['13:00前','14:00-18:00','11:30-18:50']});
+    meta.validations.push({range:`J${r}`, date:true});
+    meta.checkboxes.push({a1:`I${r}`, value:false});
+    meta.checkboxes.push({a1:`K${r}`, value:sp.done===true});
+    if(sp.date) meta.dates.push({a1:`J${r}`, iso:sp.date});
   }
+  // Sheet 手動勾的 KEY單/已完成，重新上傳時照「品項|數量|收件人」比對保留
+  meta.preserve={rows:batchRowNums, keyCol:'I', doneCol:'K', idCols:['A','B','D']};
   rows.push([]);
-  // 未安排標記（放 C 欄，跟原表位置一樣）＋紅字類備註（放 E 欄）
+  // 未安排標記（C欄藍字）＋訂單備註（E欄紅字）
   const totalToSchedule=C.cakeQty+C.giftQty;
   const remain=totalToSchedule-C.scheduledCake;
   rows.push(['','', remain>0?`未安排 ${remain}顆`:(totalToSchedule>0?'已全部安排':''), '', S.orderNote?('⚠ '+S.orderNote):'']);
+  {
+    const r=rows.length;
+    meta.styles.push({range:`C${r}`, bold:true, color:BLUE});
+    if(S.orderNote) meta.styles.push({range:`E${r}`, bold:true, color:RED});
+  }
   rows.push([]);
-  // 左側區塊（A/B欄）＋話術（E欄一行一格）並排
-  const left=[];
+  // 左側區塊（A/B欄）＋話術（E欄一行一格）並排；紅字標籤列記下位置
+  const left=[]; const redLabelIdx=[];
   const perFlavor={};
   for(const f of S.flavors){ const q=+(S.qty[f.id]||0); if(q>0) perFlavor[f.name]=(perFlavor[f.name]||0)+q; }
   for(const e of S.extras){ const f=flavorById(e.fid); const q=+e.qty||0; if(f&&q>0) perFlavor[f.name]=(perFlavor[f.name]||0)+q; }
-  left.push(['訂購總數', C.cakeQty]);
+  redLabelIdx.push(left.length); left.push(['訂購總數', C.cakeQty]);
   for(const n in perFlavor) left.push([n, perFlavor[n]]);
   for(const g of C.giftLines) left.push([`${g.name}(贈送)`, g.q]);
   if(C.oilQty>0) left.push(['油飯', C.oilQty]);
   left.push(['','']);
-  left.push(['付款狀態','']);
+  redLabelIdx.push(left.length); left.push(['付款狀態','']);
   left.push([S.paidOn?'訂金已付':'訂金未付', C.deposit]);
   left.push(['總尾款', C.finalBalance]);
   left.push(['','']);
-  left.push(['訂購資訊','']);
+  redLabelIdx.push(left.length); left.push(['訂購資訊','']);
   left.push([S.contactName||S.customer||'', '']);
   if(S.contactPhone) left.push(['電話:'+S.contactPhone, '']);
+  const zipStart=rows.length+1;   // 1-based 起始列
   const msgLines=msgQuote(C).split('\n');
   const n=Math.max(left.length, msgLines.length);
   for(let i=0;i<n;i++){
     const L=left[i]||['',''];
     rows.push([L[0], L[1]!==undefined?L[1]:'', '', '', msgLines[i]!==undefined?msgLines[i]:'']);
   }
-  return rows;
+  for(const idx of redLabelIdx) meta.styles.push({range:`A${zipStart+idx}`, bold:true, color:RED});
+  return {rows, meta};
 }
 async function cloudSave(){
   if(!cloudReady()) return;
@@ -1196,7 +1228,7 @@ async function cloudSave(){
       summary:{cakeQty:C.cakeQty, giftQty:C.giftQty, cakeAmt:C.cakeAmt, deposit:C.deposit,
                finalBalance:C.finalBalance, scheduled:C.scheduledCake, done:C.doneCnt, shipCnt:C.shipCnt},
       state:S,
-      sheets:[{name:name, rows:buildCustomerSheet(C)}]
+      sheets:[(()=>{const cs=buildCustomerSheet(C); return {name:name, rows:cs.rows, meta:cs.meta};})()]
     })});
     const d=await res.json();
     if(d.error) throw new Error(d.error);
@@ -1284,7 +1316,7 @@ $('#addExtra').addEventListener('click',()=>{
   const today=new Date(); const iso=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
   S.extras.push({fid:S.flavors[0].id,qty:0,mode:'miyue',price:0,date:iso,note:''});update();
 });
-$('#addShip').addEventListener('click',()=>{S.ships.push({mode:'delivery',label:'',cake:0,oil:0,island:false,receiver:'',phone:'',addr:'',date:'',done:false});update();});
+$('#addShip').addEventListener('click',()=>{S.ships.push({mode:'delivery',label:'',cake:0,oil:0,island:false,receiver:'',phone:'',addr:'',date:'',slot:'',done:false});update();});
 $('#addAddon').addEventListener('click',()=>{S.addons.push({name:'',amt:0});update();});
 $('#msgTabs').addEventListener('click',e=>{
   const b=e.target.closest('.tab'); if(!b) return;

@@ -119,10 +119,10 @@ function saveOrder(body){
     ]);
   });
 
-  // 仿 Excel 的「一位媽咪一個分頁」：網頁端把整張表組好送來，這裡整頁重寫
+  // 仿 Excel 的「一位媽咪一個分頁」：網頁端把資料＋格式指令(meta)組好送來，這裡整頁重寫
   (body.sheets||[]).forEach(function(spec){
     if(!spec || !spec.name || !spec.rows || !spec.rows.length) return;
-    writeCustomSheet(safeSheetName(spec.name), spec.rows);
+    writeCustomSheet(safeSheetName(spec.name), spec.rows, spec.meta||{});
   });
   return {ok:true};
 }
@@ -132,11 +132,32 @@ function safeSheetName(name){
   return String(name).replace(/[\[\]\/\\\*\?:]/g,'').slice(0,80) || '未命名';
 }
 
-function writeCustomSheet(name, rows){
+function colIdx(letter){ return String(letter).toUpperCase().charCodeAt(0) - 64; }
+
+function writeCustomSheet(name, rows, meta){
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sh = ss.getSheetByName(name);
   if(!sh) sh = ss.insertSheet(name);
-  sh.clearContents();
+
+  // 1) 先讀舊表，把手動勾的 KEY單/已完成 依「品項|數量|收件人」記下來
+  const preserveMap = {};
+  const pv = meta.preserve;
+  if(pv && sh.getLastRow() > 0){
+    const old = sh.getDataRange().getValues();
+    const kc = colIdx(pv.keyCol)-1, dc = colIdx(pv.doneCol)-1;
+    old.forEach(function(r){
+      if(typeof r[kc] === 'boolean' || typeof r[dc] === 'boolean'){
+        const key = pv.idCols.map(function(c){ return String(r[colIdx(c)-1]); }).join('|');
+        preserveMap[key] = {key: r[kc] === true, done: r[dc] === true};
+      }
+    });
+  }
+
+  // 2) 整頁清空（含格式與下拉/核取方塊）
+  sh.getRange(1,1,sh.getMaxRows(),sh.getMaxColumns()).clearDataValidations();
+  sh.clear();
+
+  // 3) 寫入資料
   const maxCols = rows.reduce(function(m,r){ return Math.max(m, (r||[]).length); }, 1);
   const grid = rows.map(function(r){
     const row = (r||[]).slice();
@@ -144,8 +165,55 @@ function writeCustomSheet(name, rows){
     return row;
   });
   sh.getRange(1,1,grid.length,maxCols).setValues(grid);
-  sh.getRange(1,1,1,maxCols).setFontWeight('bold');
   sh.setFrozenRows(1);
+
+  // 4) 欄寬
+  if(meta.colWidths){
+    for(var k in meta.colWidths){ sh.setColumnWidth(colIdx(k), meta.colWidths[k]); }
+  }
+  // 5) 樣式（粗體/顏色/置中/框線）
+  (meta.styles||[]).forEach(function(st){
+    const rng = sh.getRange(st.range);
+    if(st.bold) rng.setFontWeight('bold');
+    if(st.color) rng.setFontColor(st.color);
+    if(st.align) rng.setHorizontalAlignment(st.align);
+    if(st.border) rng.setBorder(true,true,true,true,true,true);
+  });
+  // 6) 下拉選單／日期驗證
+  (meta.validations||[]).forEach(function(v){
+    const rng = sh.getRange(v.range);
+    if(v.list){
+      rng.setDataValidation(SpreadsheetApp.newDataValidation()
+        .requireValueInList(v.list, true).setAllowInvalid(true).build());
+    }else if(v.date){
+      rng.setDataValidation(SpreadsheetApp.newDataValidation()
+        .requireDate().setAllowInvalid(true).build());
+    }
+  });
+  // 7) 到貨日：轉成真正的日期值（雙擊出小日曆）＋ M/d 顯示
+  (meta.dates||[]).forEach(function(d){
+    const p = String(d.iso).split('-');
+    if(p.length !== 3) return;
+    const rng = sh.getRange(d.a1);
+    rng.setValue(new Date(+p[0], +p[1]-1, +p[2]));
+    rng.setNumberFormat('M/d');
+  });
+  // 8) KEY單/已完成 核取方塊
+  (meta.checkboxes||[]).forEach(function(cb){
+    const rng = sh.getRange(cb.a1);
+    rng.insertCheckboxes();
+    if(cb.value === true) rng.setValue(true);
+  });
+  // 9) 套回舊表手動勾選（同一批次以 Sheet 上的勾選為準）
+  if(pv){
+    (pv.rows||[]).forEach(function(r){
+      const key = pv.idCols.map(function(c){ return String(grid[r-1][colIdx(c)-1]); }).join('|');
+      const oldVal = preserveMap[key];
+      if(!oldVal) return;
+      sh.getRange(pv.keyCol + r).setValue(oldVal.key);
+      sh.getRange(pv.doneCol + r).setValue(oldVal.done);
+    });
+  }
 }
 
 function listOrders(){
