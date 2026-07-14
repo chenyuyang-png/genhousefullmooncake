@@ -231,6 +231,14 @@ dialog .setrow input{width:80px}
       <button class="btn small" id="btnImport">⬆ 匯入</button>
       <input type="file" id="importFile" accept=".json" style="display:none">
     </div>
+    <div class="shiprow" style="border-bottom:none;padding:2px 0 0">
+      訂購人
+      <input type="text" id="contactName" placeholder="例：許志秋" style="width:100px">
+      電話
+      <input type="tel" id="contactPhone" placeholder="0925275656" style="width:120px">
+      訂單備註
+      <input type="text" id="orderNote" placeholder="例：無附叉盤組/客製小卡" style="flex:1;min-width:160px">
+    </div>
     <div class="shiprow" style="border-bottom:none;padding:4px 0 0">
       <button class="btn small primary" id="btnCloudSave">☁️ 上傳 Google Sheet</button>
       <select id="cloudSelect" style="min-width:130px"><option value="">－ 雲端訂單 －</option></select>
@@ -449,7 +457,7 @@ function blankState(){
   return {
     flavors: JSON.parse(JSON.stringify(DEFAULT_FLAVORS)),
     params: {...DEFAULT_PARAMS},
-    customer:'',
+    customer:'', contactName:'', contactPhone:'', orderNote:'',
     qty:{}, extras:[], giftQty:{}, giftOn:false,
     mzOn:false, tasteOn:false, tasteN:0, charityOn:false,
     manualOn:false, manualAmt:0, manualNote:'',
@@ -1118,14 +1126,21 @@ function cloudReady(){
   }
   return true;
 }
-/* 仿原本 Excel 的「一位媽咪一個分頁」內容 */
+/* 仿原本 Excel 的「一位媽咪一個分頁」：批次表(按到貨日分組)＋未安排標記＋
+   左側 訂購總數/付款狀態/訂購資訊 區塊、E欄放話術(一行一格)，排版對齊原表 */
 function buildCustomerSheet(C){
   const P=S.params;
   const rows=[];
   rows.push(['品項','數量','取貨方式','收件人','聯絡電話','地址','到貨/取貨時間','宅配使用箱數','KEY單','到貨日','已完成/領取','備註']);
-  for(const sp of S.ships){
+  // 批次列：照到貨日排序，日期不同就空一行分組（跟原 Excel 一樣）
+  const batches=S.ships.filter(sp=>(+sp.cake||0)>0||(+sp.oil||0)>0);
+  const sorted=[...batches].sort((a,b)=>String(a.date||'9999').localeCompare(String(b.date||'9999')));
+  let prevDate=null;
+  for(const sp of sorted){
+    const d=sp.date||'';
+    if(prevDate!==null && d!==prevDate) rows.push([]);
+    prevDate=d;
     const cake=+sp.cake||0, oil=+sp.oil||0;
-    if(cake<=0 && oil<=0) continue;
     const isDelivery=(sp.mode||'delivery')==='delivery';
     const boxes=isDelivery ? Math.ceil(cake/P.boxCapCake)+Math.ceil(oil/P.boxCapOil) : 0;
     const memo=[];
@@ -1139,23 +1154,34 @@ function buildCustomerSheet(C){
     ]);
   }
   rows.push([]);
-  // 訂購總數（含追加；贈送另列）
+  // 未安排標記（放 C 欄，跟原表位置一樣）＋紅字類備註（放 E 欄）
+  const totalToSchedule=C.cakeQty+C.giftQty;
+  const remain=totalToSchedule-C.scheduledCake;
+  rows.push(['','', remain>0?`未安排 ${remain}顆`:(totalToSchedule>0?'已全部安排':''), '', S.orderNote?('⚠ '+S.orderNote):'']);
+  rows.push([]);
+  // 左側區塊（A/B欄）＋話術（E欄一行一格）並排
+  const left=[];
   const perFlavor={};
   for(const f of S.flavors){ const q=+(S.qty[f.id]||0); if(q>0) perFlavor[f.name]=(perFlavor[f.name]||0)+q; }
   for(const e of S.extras){ const f=flavorById(e.fid); const q=+e.qty||0; if(f&&q>0) perFlavor[f.name]=(perFlavor[f.name]||0)+q; }
-  rows.push(['訂購總數', C.cakeQty]);
-  for(const n in perFlavor) rows.push([n, perFlavor[n]]);
-  for(const g of C.giftLines) rows.push([`${g.name}(贈送)`, g.q]);
-  if(C.oilQty>0) rows.push(['油飯', C.oilQty]);
-  rows.push([]);
-  rows.push(['付款狀態','']);
-  rows.push([S.paidOn?'訂金已付':'訂金未付', C.deposit]);
-  rows.push(['總尾款', C.finalBalance]);
-  rows.push([]);
-  rows.push(['訂購資訊','']);
-  rows.push([S.customer||'', '']);
-  rows.push([]);
-  rows.push([msgQuote(C)]);   // 話術全文放一格，跟原本 Excel 一樣
+  left.push(['訂購總數', C.cakeQty]);
+  for(const n in perFlavor) left.push([n, perFlavor[n]]);
+  for(const g of C.giftLines) left.push([`${g.name}(贈送)`, g.q]);
+  if(C.oilQty>0) left.push(['油飯', C.oilQty]);
+  left.push(['','']);
+  left.push(['付款狀態','']);
+  left.push([S.paidOn?'訂金已付':'訂金未付', C.deposit]);
+  left.push(['總尾款', C.finalBalance]);
+  left.push(['','']);
+  left.push(['訂購資訊','']);
+  left.push([S.contactName||S.customer||'', '']);
+  if(S.contactPhone) left.push(['電話:'+S.contactPhone, '']);
+  const msgLines=msgQuote(C).split('\n');
+  const n=Math.max(left.length, msgLines.length);
+  for(let i=0;i<n;i++){
+    const L=left[i]||['',''];
+    rows.push([L[0], L[1]!==undefined?L[1]:'', '', '', msgLines[i]!==undefined?msgLines[i]:'']);
+  }
   return rows;
 }
 async function cloudSave(){
@@ -1245,6 +1271,7 @@ function bind(id, key, isNum){
   else{ e.value=S[key]||(isNum?0:''); e.addEventListener('input',()=>{S[key]=isNum?(+e.value||0):e.value;update();}); }
 }
 bind('#custName','customer');
+bind('#contactName','contactName'); bind('#contactPhone','contactPhone'); bind('#orderNote','orderNote');
 bind('#giftOn','giftOn'); bind('#mzOn','mzOn'); bind('#tasteOn','tasteOn');
 bind('#tasteN','tasteN',true); bind('#charityOn','charityOn');
 bind('#manualOn','manualOn'); bind('#manualAmt','manualAmt',true); bind('#manualNote','manualNote');
