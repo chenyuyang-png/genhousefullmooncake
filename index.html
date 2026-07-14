@@ -695,72 +695,104 @@ function msgFinal(C){
 }
 
 /* ---------- 畫面渲染 ---------- */
-function renderFlavors(){
-  const tb=$('#flavorRows'); tb.innerHTML='';
-  for(const f of S.flavors){
-    const q=+(S.qty[f.id]||0);
-    let badge='';
-    if(f.cold===true) badge='<span class="badge">僅冷藏</span>';
-    else if(f.cold==='pickup') badge='<span class="badge freeze">冷藏取貨</span>';
-    const tr=el('tr',{},
-      el('td',{}, Object.assign(el('span',{class:'flavor-name'}),{innerHTML:f.name+badge})),
-      el('td',{class:'price'}, `$${f.price}`),
-      el('td',{}, qtyControl(q, v=>{S.qty[f.id]=v; update();})),
-      el('td',{class:'num subtotal'}, q>0?fmt(q*f.price):'–'),
-    );
-    tb.append(tr);
-  }
-}
 function qtyControl(val, onChange){
   const inp=el('input',{type:'number',min:'0',value:val});
   inp.addEventListener('input',()=>onChange(Math.max(0,+inp.value||0)));
   const minus=el('button',{type:'button','aria-label':'減少',onclick:()=>{inp.value=Math.max(0,(+inp.value||0)-1);onChange(+inp.value);}},'−');
   const plus=el('button',{type:'button','aria-label':'增加',onclick:()=>{inp.value=(+inp.value||0)+1;onChange(+inp.value);}},'＋');
-  return el('span',{class:'qty'},minus,inp,plus);
+  return {wrap: el('span',{class:'qty'},minus,inp,plus), inp};
 }
+/* 輸入框只建立一次，之後同步數值即可——重建 DOM 會讓正在打字的欄位失焦 */
+let flavorRefs=null;
+function renderFlavors(){
+  const tb=$('#flavorRows');
+  if(!flavorRefs){
+    flavorRefs={}; tb.innerHTML='';
+    for(const f of S.flavors){
+      const qc=qtyControl(+(S.qty[f.id]||0), v=>{S.qty[f.id]=v; update();});
+      let badge='';
+      if(f.cold===true) badge='<span class="badge">僅冷藏</span>';
+      else if(f.cold==='pickup') badge='<span class="badge freeze">冷藏取貨</span>';
+      const nameSpan=Object.assign(el('span',{class:'flavor-name'}),{innerHTML:f.name+badge});
+      const priceCell=el('td',{class:'price'},`$${f.price}`);
+      const subCell=el('td',{class:'num subtotal'},'–');
+      tb.append(el('tr',{}, el('td',{},nameSpan), priceCell, el('td',{},qc.wrap), subCell));
+      flavorRefs[f.id]={inp:qc.inp, priceCell, subCell};
+    }
+  }
+  for(const f of S.flavors){
+    const r=flavorRefs[f.id]; if(!r) continue;
+    const q=+(S.qty[f.id]||0);
+    r.priceCell.textContent=`$${f.price}`;
+    if(document.activeElement!==r.inp) r.inp.value=q;
+    r.subCell.textContent = q>0?fmt(q*f.price):'–';
+  }
+}
+let giftRefs=null;
 function renderGifts(C){
   $('#giftArea').style.display = S.giftOn?'':'none';
   $('#giftOn').checked = S.giftOn;
   if(!S.giftOn) return;
   const sug=Math.floor(C.cakeQty/10);
   $('#giftSuggest').textContent=`目前購買 ${C.cakeQty} 盒 → 建議贈送 ${sug} 盒（已填 ${C.giftQty} 盒）。贈送口味僅限標🎁者。`;
-  const tb=$('#giftRows'); tb.innerHTML='';
+  const tb=$('#giftRows');
+  if(!giftRefs){
+    giftRefs={}; tb.innerHTML='';
+    for(const f of S.flavors){
+      const qc=qtyControl(+(S.giftQty[f.id]||0), v=>{S.giftQty[f.id]=v; update();});
+      const tag=el('td',{class:'num price'},'');
+      tb.append(el('tr',{},
+        el('td',{}, el('span',{class:'flavor-name'}, (f.giftable?'🎁 ':'')+f.name)),
+        el('td',{}, qc.wrap), tag));
+      giftRefs[f.id]={inp:qc.inp, tag};
+    }
+  }
   for(const f of S.flavors){
+    const r=giftRefs[f.id]; if(!r) continue;
     const q=+(S.giftQty[f.id]||0);
-    const tr=el('tr',{},
-      el('td',{}, el('span',{class:'flavor-name'}, (f.giftable?'🎁 ':'')+f.name)),
-      el('td',{}, qtyControl(q, v=>{S.giftQty[f.id]=v; update();})),
-      el('td',{class:'num price'}, q>0?'贈送 $0':''),
-    );
-    tb.append(tr);
+    if(document.activeElement!==r.inp) r.inp.value=q;
+    r.tag.textContent = q>0?'贈送 $0':'';
   }
 }
+let shipRowCount=-1, shipBoxSpans=[];
 function renderShips(){
-  const wrap=$('#shipRows'); wrap.innerHTML='';
+  const wrap=$('#shipRows');
+  const P=S.params;
+  if(S.ships.length!==shipRowCount){
+    shipRowCount=S.ships.length; shipBoxSpans=[];
+    wrap.innerHTML='';
+    S.ships.forEach((sp,i)=>{
+      const boxSpan=el('span',{class:'boxinfo'},'');
+      const row=el('div',{class:'shiprow'},
+        el('input',{type:'text',placeholder:'日期/地點 (選填)',value:sp.label||'',style:'width:130px',
+          oninput:e=>{sp.label=e.target.value;save();}}),
+        '蛋糕',
+        el('input',{type:'number',class:'inline-num',min:'0',value:sp.cake||0,style:'width:62px',
+          oninput:e=>{sp.cake=+e.target.value||0;update();}}),
+        '顆　油飯',
+        el('input',{type:'number',class:'inline-num',min:'0',value:sp.oil||0,style:'width:62px',
+          oninput:e=>{sp.oil=+e.target.value||0;update();}}),
+        '盒',
+        (()=>{const sel=el('select',{onchange:e=>{sp.island=e.target.value==='1';update();}},
+          el('option',{value:'0'},'本島'), el('option',{value:'1'},'離島'));
+          sel.value=sp.island?'1':'0'; return sel;})(),
+        boxSpan,
+        el('button',{class:'del','aria-label':'刪除批次',onclick:()=>{S.ships.splice(i,1);update();}},'✕'),
+      );
+      wrap.append(row); shipBoxSpans.push(boxSpan);
+    });
+  }
   S.ships.forEach((sp,i)=>{
-    const P=S.params;
     const b=Math.ceil((+sp.cake||0)/P.boxCapCake)+Math.ceil((+sp.oil||0)/P.boxCapOil);
-    const row=el('div',{class:'shiprow'},
-      el('input',{type:'text',placeholder:'日期/地點 (選填)',value:sp.label||'',style:'width:130px',
-        oninput:e=>{sp.label=e.target.value;save();}}),
-      '蛋糕',
-      el('input',{type:'number',class:'inline-num',min:'0',value:sp.cake||0,style:'width:62px',
-        oninput:e=>{sp.cake=+e.target.value||0;update();}}),
-      '顆　油飯',
-      el('input',{type:'number',class:'inline-num',min:'0',value:sp.oil||0,style:'width:62px',
-        oninput:e=>{sp.oil=+e.target.value||0;update();}}),
-      '盒',
-      (()=>{const sel=el('select',{onchange:e=>{sp.island=e.target.value==='1';update();}},
-        el('option',{value:'0'},'本島'), el('option',{value:'1'},'離島'));
-        sel.value=sp.island?'1':'0'; return sel;})(),
-      el('span',{class:'boxinfo'},`→ ${b} 箱`),
-      el('button',{class:'del','aria-label':'刪除批次',onclick:()=>{S.ships.splice(i,1);update();}},'✕'),
-    );
-    wrap.append(row);
+    if(shipBoxSpans[i]) shipBoxSpans[i].textContent=`→ ${b} 箱`;
   });
 }
+let addonRowCount=-1;
 function renderAddons(){
-  const wrap=$('#addonRows'); wrap.innerHTML='';
+  const wrap=$('#addonRows');
+  if(S.addons.length===addonRowCount) return;
+  addonRowCount=S.addons.length;
+  wrap.innerHTML='';
   S.addons.forEach((a,i)=>{
     const row=el('div',{class:'shiprow'},
       el('input',{type:'text',placeholder:'品項名稱',value:a.name||'',style:'width:150px',
